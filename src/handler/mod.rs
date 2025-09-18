@@ -1,0 +1,10 @@
+pub mod categories_handler;
+pub mod suppliers_handler;
+pub mod stores_handler;
+pub mod customers_handler;
+pub mod employees_handler;
+pub mod products_handler;
+pub mod orders_handler;
+pub mod order_items_handler;
+pub mod inventory_handler;
+pub mod payments_handler;

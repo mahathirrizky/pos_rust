@@ -1,0 +1,19 @@
+Ringkasan Refactoring dan Peningkatan
+
+Apa yang sudah dilakukan:
+- Peringatan awal (unused_variables, unused_mut, dead_code) telah diperbaiki.
+- Kontrol akses berbasis peran telah direfaktor dari panggilan `check_roles` inline menjadi middleware Actix Web (`RoleMiddlewareFactory`).
+- Ekstraksi klaim telah ditingkatkan dengan mengimplementasikan `FromRequest` untuk `ClaimsExtractor` dan menghapusnya dari tanda tangan handler di mana tidak digunakan secara langsung.
+- Memulai implementasi abstraksi otorisasi yang lebih granular menggunakan ekstraktor kustom `StoreEmployeeAccess` untuk handler yang memerlukan `id` dari path dan pemeriksaan toko/karyawan tertentu.
+
+Kendala yang dihadapi:
+- `cargo fix` awalnya gagal karena perubahan yang belum di-commit, diselesaikan dengan menggunakan `--allow-dirty`.
+- Kesalahan sintaks yang diperkenalkan selama refactoring, terutama dengan pernyataan `match` dan koma di akhir, memerlukan koreksi manual yang cermat dan verifikasi ulang.
+- Memahami dan mengimplementasikan `FromRequest` dengan benar untuk ekstraktor kustom, terutama saat berhadapan dengan operasi asinkron dan mengkomposisikan ekstraktor lain (`ClaimsExtractor` dan `Path`). Ini menyebabkan kesalahan `cannot move out of 'req' because it is borrowed`.
+- Presisi dengan `old_string` dalam panggilan alat `replace`, karena sedikit perbedaan menyebabkan alat gagal.
+
+Apa yang akan dilakukan selanjutnya:
+- Melanjutkan refactoring handler untuk menggunakan ekstraktor kustom `StoreEmployeeAccess`. Ini melibatkan peninjauan setiap handler yang memiliki logika `if claims.0.role == "Admin" || ...` yang kompleks dan menggantinya dengan ekstraktor `StoreEmployeeAccess`.
+- Memverifikasi perubahan dengan `cargo check` setelah setiap modifikasi signifikan.
+- Setelah semua handler direfaktor, lakukan pengujian menyeluruh (unit, integrasi, dan manual) untuk memastikan perilaku otorisasi yang benar dan tidak ada regresi.
+- Mempertimbangkan peningkatan lebih lanjut seperti standarisasi respons kesalahan dan memperbarui dokumentasi.

@@ -1,0 +1,10 @@
+pub mod categories_repository;
+pub mod suppliers_repository;
+pub mod stores_repository;
+pub mod customers_repository;
+pub mod employees_repository;
+pub mod products_repository;
+pub mod orders_repository;
+pub mod order_items_repository;
+pub mod inventory_repository;
+pub mod payments_repository;
