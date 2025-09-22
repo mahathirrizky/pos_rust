@@ -1,20 +1,22 @@
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
+// This is the new payload from the client for an order item
 #[derive(Deserialize)]
-pub struct CreateOrderItem {
-    pub order_id: i32,
+pub struct CreateOrderItemPayload {
     pub product_id: i32,
     pub quantity: i32,
-    pub unit_price: Decimal,
+    pub promotion_id: Option<i32>,
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 pub struct UpdateOrderItem {
     pub order_id: Option<i32>,
     pub product_id: Option<i32>,
     pub quantity: Option<i32>,
     pub unit_price: Option<Decimal>,
+    pub discount_amount: Option<Decimal>,
 }
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
@@ -27,6 +29,8 @@ pub struct Model {
     pub quantity: i32,
     #[sea_orm(column_type = "Decimal(Some((10, 2)))")]
     pub unit_price: Decimal,
+    #[sea_orm(column_type = "Decimal(Some((10, 2)))", default_value = "0.00")]
+    pub discount_amount: Decimal,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,
 }

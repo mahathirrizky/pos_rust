@@ -10,6 +10,8 @@ mod orders_routes;
 mod order_items_routes;
 mod inventory_routes;
 mod payments_routes;
+mod refunds_routes;
+mod promotions_routes;
 
 pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -23,6 +25,8 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .configure(orders_routes::configure_routes)
             .configure(order_items_routes::configure_routes)
             .configure(inventory_routes::configure_routes)
-            .configure(payments_routes::configure_routes),
+            .configure(payments_routes::configure_routes)
+            .configure(refunds_routes::configure_routes)
+            .configure(promotions_routes::configure_routes),
     );
 }

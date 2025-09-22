@@ -5,6 +5,7 @@ use crate::middleware::role::RoleMiddlewareFactory;
 pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/employees")
+            .route("/me", web::get().to(employees_handler::get_my_profile)) // New route
             .service(
                 web::scope("")
                     .wrap(RoleMiddlewareFactory {

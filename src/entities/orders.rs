@@ -1,14 +1,11 @@
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
+// This is the new payload from the client
 #[derive(Deserialize)]
-pub struct CreateOrder {
+pub struct CreateOrderPayload {
     pub customer_id: i32,
-    pub employee_id: i32,
-    pub store_id: i32,
-    pub order_date: DateTimeUtc,
-    pub total_amount: Decimal,
-    pub status: String,
+    pub items: Vec<super::order_items::CreateOrderItemPayload>,
 }
 
 #[derive(Deserialize)]

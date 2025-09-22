@@ -4,10 +4,12 @@ use actix_web::{
     FromRequest, HttpRequest,
     web::Path,
 };
-use futures_util::future::{ready, Ready};
+use futures_util::future::{Future};
+use std::pin::Pin;
 use crate::auth::auth_service::Claims;
 use super::claims_extractor::ClaimsExtractor;
 
+#[allow(dead_code)]
 pub struct StoreEmployeeAccess {
     pub claims: Claims,
     pub id: i32,
@@ -15,7 +17,7 @@ pub struct StoreEmployeeAccess {
 
 impl FromRequest for StoreEmployeeAccess {
     type Error = actix_web::Error;
-    type Future = Ready<Result<Self, Self::Error>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Self, Self::Error>>>>;
 
     fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
         let (claims_future, path_future) = (ClaimsExtractor::from_request(req, payload), Path::<i32>::from_request(req, payload));

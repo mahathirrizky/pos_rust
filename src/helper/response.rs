@@ -1,6 +1,10 @@
 use serde::Serialize;
-use serde_json;
-use actix_web::{HttpResponse, body::BoxBody, http::header::ContentType};
+use actix_web::{
+    http::{header::ContentType, StatusCode},
+    HttpResponse, ResponseError,
+};
+use sea_orm::DbErr;
+use std::fmt;
 
 #[derive(Serialize)]
 pub struct ApiResponse<T> {
@@ -32,15 +36,45 @@ impl ApiError {
     }
 }
 
-// This is a bit more advanced, but allows to use ApiError as a response type directly
-impl actix_web::Responder for ApiError {
-    type Body = BoxBody;
+#[derive(Debug)]
+pub enum AppError {
+    NotFound(String),
+    InternalError(String),
+}
 
-    fn respond_to(self, _req: &actix_web::HttpRequest) -> HttpResponse<Self::Body> {
-        let body = serde_json::to_string(&self).unwrap();
+impl fmt::Display for AppError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AppError::NotFound(msg) => write!(f, "Not Found: {}", msg),
+            AppError::InternalError(msg) => write!(f, "Internal Error: {}", msg),
+        }
+    }
+}
 
-        HttpResponse::InternalServerError()
+impl ResponseError for AppError {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            AppError::NotFound(_) => StatusCode::NOT_FOUND,
+            AppError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+
+    fn error_response(&self) -> HttpResponse {
+        let message = match self {
+            AppError::NotFound(msg) => msg.clone(),
+            AppError::InternalError(_) => "An unexpected internal error occurred.".to_string(),
+        };
+
+        let error_json = ApiError::new(message);
+
+        HttpResponse::build(self.status_code())
             .content_type(ContentType::json())
-            .body(body)
+            .json(error_json)
+    }
+}
+
+impl From<DbErr> for AppError {
+    fn from(err: DbErr) -> Self {
+        AppError::InternalError(err.to_string())
     }
 }

@@ -8,3 +8,5 @@ pub mod orders_repository;
 pub mod order_items_repository;
 pub mod inventory_repository;
 pub mod payments_repository;
+pub mod refunds_repository;
+pub mod promotions_repository;

@@ -1,45 +1,52 @@
-use sea_orm::{DatabaseConnection, DbErr, EntityTrait, ActiveModelTrait, ActiveValue, ColumnTrait, QueryFilter};
-use crate::entities::orders;
+use sea_orm::{DbErr, EntityTrait, ActiveModelTrait, ActiveValue, ColumnTrait, QueryFilter, ConnectionTrait, prelude::Decimal};
+use crate::entities::{orders, order_items};
 
 pub struct OrderRepository;
 
 impl OrderRepository {
-    pub async fn get_all(db: &DatabaseConnection) -> Result<Vec<orders::Model>, DbErr> {
+    pub async fn get_all<C>(db: &C) -> Result<Vec<orders::Model>, DbErr> where C: ConnectionTrait {
         orders::Entity::find().all(db).await
     }
 
-    pub async fn get_all_by_store(db: &DatabaseConnection, store_id: i32) -> Result<Vec<orders::Model>, DbErr> {
+    pub async fn get_all_by_store<C>(db: &C, store_id: i32) -> Result<Vec<orders::Model>, DbErr> where C: ConnectionTrait {
         orders::Entity::find()
             .filter(orders::Column::StoreId.eq(store_id))
             .all(db)
             .await
     }
 
-    pub async fn get_all_by_employee(db: &DatabaseConnection, employee_id: i32) -> Result<Vec<orders::Model>, DbErr> {
+    pub async fn get_all_by_employee<C>(db: &C, employee_id: i32) -> Result<Vec<orders::Model>, DbErr> where C: ConnectionTrait {
         orders::Entity::find()
             .filter(orders::Column::EmployeeId.eq(employee_id))
             .all(db)
             .await
     }
 
-    pub async fn create(db: &DatabaseConnection, new_order: orders::CreateOrder) -> Result<orders::Model, DbErr> {
+    pub async fn create<C>(db: &C, customer_id: i32, employee_id: i32, store_id: i32, total_amount: Decimal, status: String, items: Vec<order_items::ActiveModel>) -> Result<orders::Model, DbErr> where C: ConnectionTrait {
         let order = orders::ActiveModel {
-            customer_id: ActiveValue::Set(new_order.customer_id),
-            employee_id: ActiveValue::Set(new_order.employee_id),
-            store_id: ActiveValue::Set(new_order.store_id),
-            order_date: ActiveValue::Set(new_order.order_date),
-            total_amount: ActiveValue::Set(new_order.total_amount),
-            status: ActiveValue::Set(new_order.status),
+            customer_id: ActiveValue::Set(customer_id),
+            employee_id: ActiveValue::Set(employee_id),
+            store_id: ActiveValue::Set(store_id),
+            order_date: ActiveValue::Set(chrono::Utc::now()),
+            total_amount: ActiveValue::Set(total_amount),
+            status: ActiveValue::Set(status),
             ..Default::default()
         };
-        order.insert(db).await
+        let inserted_order = order.insert(db).await?;
+
+        for mut item in items {
+            item.order_id = ActiveValue::Set(inserted_order.id);
+            item.insert(db).await?;
+        }
+
+        Ok(inserted_order)
     }
 
-    pub async fn find_by_id(db: &DatabaseConnection, id: i32) -> Result<Option<orders::Model>, DbErr> {
+    pub async fn find_by_id<C>(db: &C, id: i32) -> Result<Option<orders::Model>, DbErr> where C: ConnectionTrait {
         orders::Entity::find_by_id(id).one(db).await
     }
 
-    pub async fn update(db: &DatabaseConnection, id: i32, update_data: orders::UpdateOrder) -> Result<Option<orders::Model>, DbErr> {
+    pub async fn update<C>(db: &C, id: i32, update_data: orders::UpdateOrder) -> Result<Option<orders::Model>, DbErr> where C: ConnectionTrait {
         let order: Option<orders::Model> = orders::Entity::find_by_id(id).one(db).await?;
         if let Some(order) = order {
             let mut active_model: orders::ActiveModel = order.into();
@@ -67,7 +74,7 @@ impl OrderRepository {
         }
     }
 
-    pub async fn delete(db: &DatabaseConnection, id: i32) -> Result<u64, DbErr> {
+    pub async fn delete<C>(db: &C, id: i32) -> Result<u64, DbErr> where C: ConnectionTrait {
         let res = orders::Entity::delete_by_id(id).exec(db).await?;
         Ok(res.rows_affected)
     }

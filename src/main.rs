@@ -12,7 +12,12 @@ mod guard; // New module
 use std::env;
 use sea_orm::{Database, DatabaseConnection};
 use sea_orm_migration::MigratorTrait; // Import MigratorTrait
-use actix_web::{web, App, HttpServer};
+use actix_web::{web, App, HttpRequest, HttpServer, Result};
+use actix_files::{Files, NamedFile};
+
+async fn index(_req: HttpRequest) -> Result<NamedFile> {
+    Ok(NamedFile::open("./frontend/dist/index.html")?)
+}
 
 #[actix_web::main] // Make main function async and actix compatible
 async fn main() -> std::io::Result<()> {
@@ -28,13 +33,16 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(db_data.clone())
-            // Public routes (e.g., login)
+            // API routes
             .service(web::scope("/api/auth").route("/login", web::post().to(auth::auth_handler::login)))
-            // Protected routes are now configured directly in routes
-            .service(
-                web::scope("/api")
-                    .configure(routes::configure_routes)
-            )
+            .service(web::scope("/api").configure(routes::configure_routes))
+            
+            // Static assets
+            .service(Files::new("/assets", "./frontend/dist/assets"))
+            .route("/vite.svg", web::get().to(|| async { NamedFile::open_async("./frontend/dist/vite.svg").await }))
+
+            // SPA routes (should be last)
+            .route("/{tail:.*}", web::get().to(index))
     })
     .bind("127.0.0.1:8080")?
     .run()

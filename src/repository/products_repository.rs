@@ -1,14 +1,18 @@
-use sea_orm::{DatabaseConnection, DbErr, EntityTrait, ActiveModelTrait, ActiveValue};
+use sea_orm::{DbErr, EntityTrait, ActiveModelTrait, ActiveValue, ConnectionTrait, ColumnTrait, QueryFilter};
 use crate::entities::products;
 
 pub struct ProductRepository;
 
 impl ProductRepository {
-    pub async fn get_all(db: &DatabaseConnection) -> Result<Vec<products::Model>, DbErr> {
+    pub async fn get_all<C: ConnectionTrait>(db: &C) -> Result<Vec<products::Model>, DbErr> {
         products::Entity::find().all(db).await
     }
 
-    pub async fn create(db: &DatabaseConnection, new_product: products::CreateProduct) -> Result<products::Model, DbErr> {
+    pub async fn find_by_ids<C: ConnectionTrait>(db: &C, ids: Vec<i32>) -> Result<Vec<products::Model>, DbErr> {
+        products::Entity::find().filter(products::Column::Id.is_in(ids)).all(db).await
+    }
+
+    pub async fn create<C: ConnectionTrait>(db: &C, new_product: products::CreateProduct) -> Result<products::Model, DbErr> {
         let product = products::ActiveModel {
             name: ActiveValue::Set(new_product.name),
             description: ActiveValue::Set(new_product.description),
@@ -21,11 +25,11 @@ impl ProductRepository {
         product.insert(db).await
     }
 
-    pub async fn find_by_id(db: &DatabaseConnection, id: i32) -> Result<Option<products::Model>, DbErr> {
+    pub async fn find_by_id<C: ConnectionTrait>(db: &C, id: i32) -> Result<Option<products::Model>, DbErr> {
         products::Entity::find_by_id(id).one(db).await
     }
 
-    pub async fn update(db: &DatabaseConnection, id: i32, update_data: products::UpdateProduct) -> Result<Option<products::Model>, DbErr> {
+    pub async fn update<C: ConnectionTrait>(db: &C, id: i32, update_data: products::UpdateProduct) -> Result<Option<products::Model>, DbErr> {
         let product: Option<products::Model> = products::Entity::find_by_id(id).one(db).await?;
         if let Some(product) = product {
             let mut active_model: products::ActiveModel = product.into();
@@ -53,7 +57,7 @@ impl ProductRepository {
         }
     }
 
-    pub async fn delete(db: &DatabaseConnection, id: i32) -> Result<u64, DbErr> {
+    pub async fn delete<C: ConnectionTrait>(db: &C, id: i32) -> Result<u64, DbErr> {
         let res = products::Entity::delete_by_id(id).exec(db).await?;
         Ok(res.rows_affected)
     }

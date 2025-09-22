@@ -8,3 +8,5 @@ pub mod orders_handler;
 pub mod order_items_handler;
 pub mod inventory_handler;
 pub mod payments_handler;
+pub mod refunds_handler;
+pub mod promotions_handler;

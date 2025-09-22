@@ -32,6 +32,10 @@ pub async fn get_employee_by_id(guard: EmployeeAccessGuard) -> impl Responder {
     HttpResponse::Ok().json(ApiResponse::new(guard.employee))
 }
 
+pub async fn get_my_profile(guard: EmployeeAccessGuard) -> impl Responder {
+    HttpResponse::Ok().json(ApiResponse::new(guard.employee))
+}
+
 pub async fn update_employee(guard: EmployeeAccessGuard, db: web::Data<DatabaseConnection>, update_data: web::Json<UpdateEmployee>) -> impl Responder {
     let employee_id = guard.employee.id;
     let mut employee_data = update_data.into_inner();
@@ -67,3 +71,4 @@ pub async fn delete_employee(db: web::Data<DatabaseConnection>, id: web::Path<i3
         Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to delete employee".to_string())),
     }
 }
+

@@ -19,7 +19,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
                     .wrap(RoleMiddlewareFactory {
                         allowed_roles: vec!["StoreManager".to_string(), "Cashier".to_string()],
                     })
-                    .route("", web::post().to(order_items_handler::create_order_item))
+                    // .route("", web::post().to(order_items_handler::create_order_item))
             )
             .service(
                 web::scope("")
