@@ -1,10 +1,11 @@
 use crate::repository::employees_repository::EmployeeRepository;
 use actix_web::{web, HttpResponse, Responder};
 use crate::helper::response::{ApiResponse, ApiError};
-use crate::entities::employees::{CreateEmployee, UpdateEmployee};
+use crate::entities::employees::{CreateEmployee, UpdateEmployee, EmployeeReportData};
 use sea_orm::DatabaseConnection;
 use crate::guard::employee_guard::EmployeeAccessGuard;
 use crate::auth::auth_service;
+use crate::extractor::claims_extractor::ClaimsExtractor;
 
 pub async fn get_all_employees(db: web::Data<DatabaseConnection>) -> impl Responder {
     match EmployeeRepository::get_all(db.get_ref()).await {
@@ -70,5 +71,29 @@ pub async fn delete_employee(db: web::Data<DatabaseConnection>, id: web::Path<i3
         Ok(_) => HttpResponse::NotFound().json(ApiError::new("Employee not found".to_string())),
         Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to delete employee".to_string())),
     }
+}
+
+pub async fn get_employee_report(
+    db: web::Data<DatabaseConnection>,
+    claims: ClaimsExtractor,
+) -> impl Responder {
+    if claims.0.role != "Admin" && claims.0.role != "StoreManager" {
+        return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Insufficient privileges".to_string()));
+    }
+
+    let employees = if claims.0.role == "Admin" {
+        match EmployeeRepository::get_all(db.get_ref()).await {
+            Ok(e) => e,
+            Err(_) => return HttpResponse::InternalServerError().json(ApiError::new("Failed to fetch employees".to_string())),
+        }
+    } else { // StoreManager
+        match EmployeeRepository::get_all_by_store(db.get_ref(), claims.0.store_id).await {
+            Ok(e) => e,
+            Err(_) => return HttpResponse::InternalServerError().json(ApiError::new("Failed to fetch employees by store".to_string())),
+        }
+    };
+
+    let report_data: Vec<EmployeeReportData> = employees.into_iter().map(EmployeeReportData::from).collect();
+    HttpResponse::Ok().json(ApiResponse::new(report_data))
 }
 

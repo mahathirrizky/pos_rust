@@ -9,8 +9,9 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .service(
                 web::scope("")
                     .wrap(RoleMiddlewareFactory {
-                        allowed_roles: vec!["Admin".to_string()],
+                        allowed_roles: vec!["Admin".to_string(), "StoreManager".to_string()],
                     })
+                    .route("/report", web::get().to(employees_handler::get_employee_report))
                     .route("", web::get().to(employees_handler::get_all_employees))
                     .route("", web::post().to(employees_handler::create_employee))
                     .route("/{id}", web::delete().to(employees_handler::delete_employee)),

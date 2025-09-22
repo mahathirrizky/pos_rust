@@ -8,9 +8,14 @@ use crate::guard::order_guard::OrderAccessGuard;
 use crate::repository::products_repository::ProductRepository;
 use crate::repository::promotions_repository::PromotionRepository;
 use crate::repository::inventory_repository::InventoryRepository;
-use crate::entities::{order_items, promotions, products};
+use crate::entities::{order_items, promotions, products, employees};
 use std::collections::HashMap;
 use chrono::Utc;
+use crate::entities::orders::{SalesReport, ProductSalesReport, EmployeeSalesReport, SalesReportQueryParams};
+use crate::entities::orders::Column as OrderColumn;
+use crate::entities::orders::Entity as OrderEntity;
+use sea_orm::{QuerySelect, ColumnTrait, Condition, self, EntityTrait, QueryFilter};
+use std::str::FromStr;
 
 pub async fn get_all_orders(claims: ClaimsExtractor, db: web::Data<DatabaseConnection>) -> impl Responder {
     if claims.0.role == "Admin" {
@@ -175,6 +180,124 @@ pub async fn delete_order(guard: OrderAccessGuard, db: web::Data<DatabaseConnect
         Ok(_) => HttpResponse::NotFound().json(ApiError::new("Order not found".to_string())),
         Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to delete order".to_string())),
     }
+}
+
+pub async fn get_sales_report(
+    claims: ClaimsExtractor,
+    db: web::Data<DatabaseConnection>,
+    query_params: web::Query<SalesReportQueryParams>,
+) -> impl Responder {
+    if claims.0.role != "Admin" && claims.0.role != "StoreManager" {
+        return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Insufficient privileges".to_string()));
+    }
+
+    let mut condition = Condition::all();
+
+    if let Some(start_date) = query_params.start_date {
+        condition = condition.add(OrderColumn::OrderDate.gte(start_date));
+    }
+    if let Some(end_date) = query_params.end_date {
+        condition = condition.add(OrderColumn::OrderDate.lte(end_date));
+    }
+    if let Some(store_id) = query_params.store_id {
+        condition = condition.add(OrderColumn::StoreId.eq(store_id));
+    }
+    // If StoreManager, filter by their store_id
+    if claims.0.role == "StoreManager" {
+        condition = condition.add(OrderColumn::StoreId.eq(claims.0.store_id));
+    }
+    if let Some(employee_id) = query_params.employee_id {
+        condition = condition.add(OrderColumn::EmployeeId.eq(employee_id));
+    }
+
+    // Fetch all relevant orders with their items, products, and employees
+    let orders_with_items_and_employees = match OrderEntity::find()
+        .filter(condition)
+        .left_join(order_items::Entity)
+        .left_join(employees::Entity)
+        .select_only()
+        .column(OrderColumn::Id)
+        .column(OrderColumn::TotalAmount)
+        .column(OrderColumn::EmployeeId)
+        .column(employees::Column::FirstName)
+        .column(employees::Column::LastName)
+        .column(order_items::Column::ProductId)
+        .column(order_items::Column::Quantity)
+        .column(order_items::Column::UnitPrice)
+        .column(order_items::Column::DiscountAmount)
+        .into_json()
+        .all(db.get_ref())
+        .await
+    {
+        Ok(data) => data,
+        Err(e) => return HttpResponse::InternalServerError().json(ApiError::new(format!("Failed to fetch sales data: {}", e))),
+    };
+
+    let all_products = match products::Entity::find().all(db.get_ref()).await {
+        Ok(p) => p,
+        Err(e) => return HttpResponse::InternalServerError().json(ApiError::new(format!("Failed to fetch products: {}", e))),
+    };
+    let products_map: HashMap<i32, products::Model> = all_products.into_iter().map(|p| (p.id, p)).collect();
+
+    let mut total_sales_amount = Decimal::new(0, 2);
+    let mut total_orders = 0u64;
+    let mut product_sales_map: HashMap<i32, ProductSalesReport> = HashMap::new();
+    let mut employee_sales_map: HashMap<i32, EmployeeSalesReport> = HashMap::new();
+
+    let mut processed_order_ids = std::collections::HashSet::new();
+
+    for row in orders_with_items_and_employees {
+        let order_id: i32 = row["id"].as_i64().unwrap() as i32;
+        let order_total_amount: Decimal = Decimal::from_str(&row["total_amount"].as_str().unwrap()).unwrap();
+        let employee_id: i32 = row["employee_id"].as_i64().unwrap() as i32;
+        let employee_first_name: String = row["employees"].as_object().unwrap()["first_name"].as_str().unwrap().to_string();
+        let employee_last_name: String = row["employees"].as_object().unwrap()["last_name"].as_str().unwrap().to_string();
+        let product_id: i32 = row["order_items"].as_object().unwrap()["product_id"].as_i64().unwrap() as i32;
+        let quantity: i32 = row["order_items"].as_object().unwrap()["quantity"].as_i64().unwrap() as i32;
+        let unit_price: Decimal = Decimal::from_str(&row["order_items"].as_object().unwrap()["unit_price"].as_str().unwrap()).unwrap();
+        let discount_amount: Decimal = Decimal::from_str(&row["order_items"].as_object().unwrap()["discount_amount"].as_str().unwrap()).unwrap();
+        let product_name: String = products_map.get(&product_id).map(|p| p.name.clone()).unwrap_or_else(|| "Unknown Product".to_string());
+
+        // Aggregate total sales amount and total orders
+        if processed_order_ids.insert(order_id) {
+            total_sales_amount += order_total_amount;
+            total_orders += 1;
+        }
+
+        // Aggregate product sales
+        let product_revenue = (unit_price - discount_amount) * Decimal::from(quantity);
+        product_sales_map.entry(product_id)
+            .and_modify(|e| {
+                e.quantity_sold += quantity;
+                e.total_revenue += product_revenue;
+            })
+            .or_insert(ProductSalesReport {
+                product_id,
+                product_name: product_name.clone(),
+                quantity_sold: quantity,
+                total_revenue: product_revenue,
+            });
+
+        // Aggregate employee sales
+        employee_sales_map.entry(employee_id)
+            .and_modify(|e| {
+                e.total_sales_handled += order_total_amount;
+            })
+            .or_insert(EmployeeSalesReport {
+                employee_id,
+                employee_name: format!("{} {}", employee_first_name, employee_last_name),
+                total_sales_handled: order_total_amount,
+            });
+    }
+
+    let sales_report = SalesReport {
+        total_sales_amount,
+        total_orders,
+        product_sales: product_sales_map.into_values().collect(),
+        employee_sales: employee_sales_map.into_values().collect(),
+    };
+
+    HttpResponse::Ok().json(ApiResponse::new(sales_report))
 }
 
 

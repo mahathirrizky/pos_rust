@@ -13,6 +13,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
                     .route("", web::get().to(orders_handler::get_all_orders))
                     .route("/{id}", web::get().to(orders_handler::get_order_by_id))
                     .route("/{id}", web::put().to(orders_handler::update_order))
+                    .route("/report", web::get().to(orders_handler::get_sales_report))
             )
             .service(
                 web::scope("")

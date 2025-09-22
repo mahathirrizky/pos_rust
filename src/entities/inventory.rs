@@ -17,6 +17,30 @@ pub struct UpdateInventory {
     pub last_restocked: Option<DateTimeUtc>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct InventoryReportItem {
+    pub inventory_id: i32,
+    pub product_id: i32,
+    pub product_name: String,
+    pub store_id: i32,
+    pub store_name: String,
+    pub quantity: i32,
+    pub last_restocked: Option<DateTimeUtc>,
+    pub updated_at: DateTimeUtc,
+}
+
+#[derive(Debug, Serialize)]
+pub struct InventoryReport {
+    pub items: Vec<InventoryReportItem>,
+    pub total_items: u64,
+}
+
+#[derive(Deserialize)]
+pub struct InventoryReportQueryParams {
+    pub store_id: Option<i32>,
+    pub product_id: Option<i32>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "inventory")]
 pub struct Model {

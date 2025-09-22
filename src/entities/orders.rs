@@ -18,6 +18,37 @@ pub struct UpdateOrder {
     pub status: Option<String>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct ProductSalesReport {
+    pub product_id: i32,
+    pub product_name: String,
+    pub quantity_sold: i32,
+    pub total_revenue: Decimal,
+}
+
+#[derive(Debug, Serialize)]
+pub struct EmployeeSalesReport {
+    pub employee_id: i32,
+    pub employee_name: String,
+    pub total_sales_handled: Decimal,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SalesReport {
+    pub total_sales_amount: Decimal,
+    pub total_orders: u64,
+    pub product_sales: Vec<ProductSalesReport>,
+    pub employee_sales: Vec<EmployeeSalesReport>,
+}
+
+#[derive(Deserialize)]
+pub struct SalesReportQueryParams {
+    pub start_date: Option<DateTimeUtc>,
+    pub end_date: Option<DateTimeUtc>,
+    pub store_id: Option<i32>,
+    pub employee_id: Option<i32>,
+}
+
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "orders")]
 pub struct Model {

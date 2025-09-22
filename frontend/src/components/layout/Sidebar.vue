@@ -1,11 +1,34 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
+
+const props = defineProps({
+  employee: Object // Define employee prop
+});
 
 const menu = ref([
-  { to: '/cashier', icon: 'pi pi-home', tooltip: 'Home' },
-  { to: '/bills', icon: 'pi pi-file', tooltip: 'Bills' },
-  { to: '/settings', icon: 'pi pi-cog', tooltip: 'Settings' },
+  // Cashier/General User Links
+  { to: '/cashier', icon: 'pi pi-home', tooltip: 'Home', roles: ['Cashier', 'Admin', 'StoreManager'] },
+  { to: '/cashier/bills', icon: 'pi pi-file', tooltip: 'Bills', roles: ['Cashier', 'Admin', 'StoreManager'] },
+  { to: '/cashier/settings', icon: 'pi pi-cog', tooltip: 'Settings', roles: ['Cashier', 'Admin', 'StoreManager'] },
+
+  // Inventory Manager Links
+  { to: '/inventory-manager', icon: 'pi pi-chart-line', tooltip: 'Dashboard', roles: ['Admin', 'StoreManager', 'InventoryManager'] }, // Consolidated Home/Dashboard
+  { to: '/inventory-manager/inventory', icon: 'pi pi-box', tooltip: 'Inventory', roles: ['Admin', 'StoreManager', 'InventoryManager'] }, // Specific Inventory List
+  { to: '/inventory-manager/products', icon: 'pi pi-tag', tooltip: 'Products', roles: ['Admin', 'StoreManager', 'InventoryManager'] },
+  { to: '/inventory-manager/suppliers', icon: 'pi pi-truck', tooltip: 'Suppliers', roles: ['Admin', 'StoreManager', 'InventoryManager'] },
+  { to: '/inventory-manager/reports', icon: 'pi pi-chart-bar', tooltip: 'Reports', roles: ['Admin', 'StoreManager', 'InventoryManager'] },
+  { to: '/inventory-manager/settings', icon: 'pi pi-cog', tooltip: 'Settings', roles: ['Admin', 'StoreManager', 'InventoryManager'] },
+
+  // Global Links (if any, e.g., Landing Page)
+  { to: '/', icon: 'pi pi-globe', tooltip: 'Landing Page', roles: ['Admin'] }, // Only Admin sees this, or make it public if needed
 ]);
+
+const filteredMenu = computed(() => {
+  if (!props.employee || !props.employee.role) {
+    return [];
+  }
+  return menu.value.filter(item => item.roles.includes(props.employee.role));
+});
 
 const handleLogout = () => {
   // Handle logout logic
@@ -22,10 +45,11 @@ const handleLogout = () => {
 
     <!-- Main Menu -->
     <ul class="flex-grow">
-      <li v-for="item in menu" :key="item.to" class="my-4">
+      <li v-for="item in filteredMenu" :key="item.to" class="my-4">
         <router-link :to="item.to" v-tooltip.right="item.tooltip"
           class="flex items-center justify-center p-3 rounded-lg text-gray-600 hover:bg-primary-100 hover:text-primary transition-colors duration-200"
-          active-class="bg-primary-500 text-white">
+          active-class="bg-primary-500 text-white"
+          exact-active-class="bg-primary-500 text-white">
           <i :class="item.icon" class="text-4xl"></i>
         </router-link>
       </li>
@@ -40,7 +64,3 @@ const handleLogout = () => {
     </div>
   </div>
 </template>
-
-<style scoped>
-/* Tooltip styling if needed */
-</style>

@@ -12,6 +12,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .route("", web::post().to(inventory_handler::create_inventory))
             .route("/{id}", web::get().to(inventory_handler::get_inventory_by_id))
             .route("/{id}", web::put().to(inventory_handler::update_inventory))
-            .route("/{id}", web::delete().to(inventory_handler::delete_inventory)),
+            .route("/{id}", web::delete().to(inventory_handler::delete_inventory))
+            .route("/report", web::get().to(inventory_handler::get_inventory_report)),
     );
 }

@@ -23,6 +23,35 @@ pub struct UpdateEmployee {
     pub password_hash: Option<String>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct EmployeeReportData {
+    pub id: i32,
+    pub first_name: String,
+    pub last_name: String,
+    pub email: String,
+    pub phone: Option<String>,
+    pub store_id: i32,
+    pub role: String,
+    pub created_at: DateTimeUtc,
+    pub updated_at: DateTimeUtc,
+}
+
+impl From<Model> for EmployeeReportData {
+    fn from(employee: Model) -> Self {
+        EmployeeReportData {
+            id: employee.id,
+            first_name: employee.first_name,
+            last_name: employee.last_name,
+            email: employee.email,
+            phone: employee.phone,
+            store_id: employee.store_id,
+            role: employee.role,
+            created_at: employee.created_at,
+            updated_at: employee.updated_at,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "employees")]
 pub struct Model {

@@ -8,6 +8,10 @@ impl EmployeeRepository {
         employees::Entity::find().all(db).await
     }
 
+    pub async fn get_all_by_store(db: &DatabaseConnection, store_id: i32) -> Result<Vec<employees::Model>, DbErr> {
+        employees::Entity::find().filter(employees::Column::StoreId.eq(store_id)).all(db).await
+    }
+
     pub async fn create(db: &DatabaseConnection, new_employee: employees::CreateEmployee) -> Result<employees::Model, DbErr> {
         let employee = employees::ActiveModel {
             first_name: ActiveValue::Set(new_employee.first_name),

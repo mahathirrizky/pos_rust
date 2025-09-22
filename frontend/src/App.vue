@@ -1,8 +1,9 @@
 <script setup>
-// No imports needed for layout components
+import Toast from 'primevue/toast';
 </script>
 
 <template>
+  <Toast />
   <router-view />
 </template>
 
