@@ -11,7 +11,8 @@ pub struct CreateProduct {
     pub supplier_id: i32,
 }
 
-#[derive(Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateProduct {
     pub name: Option<String>,
     pub description: Option<String>,
@@ -35,6 +36,23 @@ pub struct Model {
     pub sku: String,
     pub category_id: i32,
     pub supplier_id: i32,
+    pub created_at: DateTimeUtc,
+    pub updated_at: DateTimeUtc,
+}
+
+use sea_orm::FromQueryResult;
+
+#[derive(Debug, Serialize, FromQueryResult)]
+pub struct ProductWithDetails {
+    pub id: i32,
+    pub name: String,
+    pub description: Option<String>,
+    pub price: Decimal,
+    pub sku: String,
+    pub category_id: i32,
+    pub category_name: String,
+    pub supplier_id: i32,
+    pub supplier_name: String,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,
 }

@@ -1,11 +1,30 @@
-use sea_orm::{DbErr, EntityTrait, ActiveModelTrait, ActiveValue, ConnectionTrait, ColumnTrait, QueryFilter};
-use crate::entities::products;
+use sea_orm::{ConnectionTrait, DbErr, EntityTrait, ActiveModelTrait, ActiveValue, QueryFilter, ColumnTrait, JoinType, QuerySelect, RelationTrait};
+use crate::entities::products::{self, ProductWithDetails};
+use crate::entities::categories;
+use crate::entities::suppliers;
 
 pub struct ProductRepository;
 
 impl ProductRepository {
-    pub async fn get_all<C: ConnectionTrait>(db: &C) -> Result<Vec<products::Model>, DbErr> {
-        products::Entity::find().all(db).await
+    pub async fn get_all<C: ConnectionTrait>(db: &C) -> Result<Vec<ProductWithDetails>, DbErr> {
+        products::Entity::find()
+            .join(JoinType::InnerJoin, products::Relation::Category.def())
+            .join(JoinType::InnerJoin, products::Relation::Supplier.def())
+            .select_only()
+            .column(products::Column::Id)
+            .column(products::Column::Name)
+            .column(products::Column::Description)
+            .column(products::Column::Price)
+            .column(products::Column::Sku)
+            .column(products::Column::CategoryId)
+            .column(products::Column::SupplierId)
+            .column(products::Column::CreatedAt)
+            .column(products::Column::UpdatedAt)
+            .column_as(categories::Column::Name, "category_name")
+            .column_as(suppliers::Column::Name, "supplier_name")
+            .into_model::<ProductWithDetails>()
+            .all(db)
+            .await
     }
 
     pub async fn find_by_ids<C: ConnectionTrait>(db: &C, ids: Vec<i32>) -> Result<Vec<products::Model>, DbErr> {
