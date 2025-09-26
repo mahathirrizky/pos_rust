@@ -1,13 +1,15 @@
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateCategory {
     pub name: String,
     pub description: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateCategory {
     pub name: Option<String>,
     pub description: Option<String>,

@@ -1,50 +1,60 @@
 import InventoryManagerLayout from '../../components/layout/InventoryManagerLayout.vue';
-import InventoryDashboardView from '../../views/inventoryManager/InventoryDashboardView.vue';
-import SettingsView from '../../views/placeholder/SettingsView.vue';
-import InventoryListView from '../../views/inventoryManager/InventoryListView.vue'; // New import
-import ProductManagementView from '../../views/inventoryManager/ProductManagementView.vue'; // New import
-import SupplierManagementView from '../../views/inventoryManager/SupplierManagementView.vue'; // New import
-import ReportsView from '../../views/inventoryManager/ReportsView.vue'; // New import
 
 const inventoryManagerRoutes = {
   path: '/inventory-manager',
   component: InventoryManagerLayout,
+  meta: { allowedRoles: ['InventoryManager', 'Admin', 'Owner'] },
   children: [
     {
       path: '',
       name: 'InventoryDashboard',
-      component: InventoryDashboardView,
-      meta: { requiresAuth: true, allowedRoles: ['Admin', 'StoreManager', 'InventoryManager'] }
+      component: () => import('../../views/inventoryManager/InventoryDashboardView.vue'),
+      
     },
     {
-      path: 'inventory', // New route for Inventory List
+      path: 'inventory',
       name: 'InventoryList',
-      component: InventoryListView,
-      meta: { requiresAuth: true, allowedRoles: ['Admin', 'StoreManager', 'InventoryManager'] }
+      component: () => import('../../views/inventoryManager/Inventory.vue'),
+      
     },
     {
-      path: 'products', // New route for Product Management
+      path: 'products',
       name: 'ProductManagement',
-      component: ProductManagementView,
-      meta: { requiresAuth: true, allowedRoles: ['Admin', 'StoreManager', 'InventoryManager'] }
+      component: () => import('../../views/inventoryManager/Products.vue'),
+      
     },
     {
-      path: 'suppliers', // New route for Supplier Management
+      path: 'suppliers',
       name: 'SupplierManagement',
-      component: SupplierManagementView,
-      meta: { requiresAuth: true, allowedRoles: ['Admin', 'StoreManager', 'InventoryManager'] }
+      component: () => import('../../views/inventoryManager/Suppliers.vue'),
+      
     },
     {
-      path: 'reports', // New route for Reports
+      path: 'purchase-orders',
+      name: 'PurchaseOrderList',
+      component: () => import('../../views/purchase-orders/PurchaseOrderListView.vue'),
+    },
+    {
+      path: 'purchase-orders/new',
+      name: 'CreatePurchaseOrder',
+      component: () => import('../../views/purchase-orders/CreatePurchaseOrderView.vue'),
+    },
+    {
+      path: 'purchase-orders/:id',
+      name: 'PurchaseOrderDetail',
+      component: () => import('../../views/purchase-orders/PurchaseOrderDetailView.vue'),
+    },
+    {
+      path: 'reports',
       name: 'InventoryReports',
-      component: ReportsView,
-      meta: { requiresAuth: true, allowedRoles: ['Admin', 'StoreManager', 'InventoryManager'] }
+      component: () => import('../../views/inventoryManager/Reports.vue'),
+      
     },
     {
       path: 'settings',
       name: 'InventorySettings',
-      component: SettingsView,
-      meta: { requiresAuth: true, allowedRoles: ['Admin', 'StoreManager', 'InventoryManager'] }
+      component: () => import('../../views/inventoryManager/Settings.vue'),
+      
     },
   ],}
 export default inventoryManagerRoutes

@@ -8,7 +8,8 @@ pub struct CreateOrderPayload {
     pub items: Vec<super::order_items::CreateOrderItemPayload>,
 }
 
-#[derive(Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateOrder {
     pub customer_id: Option<i32>,
     pub employee_id: Option<i32>,

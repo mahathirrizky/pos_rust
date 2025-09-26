@@ -8,7 +8,8 @@ pub struct CreateRefund {
     pub items: Vec<CreateRefundItem>,
 }
 
-#[derive(Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateRefundItem {
     pub order_item_id: i32,
     pub quantity: i32,

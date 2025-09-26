@@ -1,33 +1,41 @@
-use argon2::{Argon2, PasswordHasher, PasswordVerifier, PasswordHash};
-use jsonwebtoken::{encode, decode, Header, EncodingKey, DecodingKey, Validation, TokenData};
-use serde::{Serialize, Deserialize};
-use chrono::{Utc, Duration};
+use argon2::{self, Argon2, PasswordHash, PasswordVerifier};
+use chrono::{Duration, Utc};
+use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
+use lazy_static::lazy_static;
+use password_hash::{PasswordHasher, SaltString};
+use rand::rngs::OsRng;
 use sea_orm::DbErr;
-use crate::entities::employees;
-use password_hash::{SaltString, rand_core::OsRng};
+use serde::{Deserialize, Serialize};
+use actix_web::{FromRequest, HttpRequest, dev::Payload, http, error::ErrorUnauthorized};
+use std::future::{Future};
+use std::pin::Pin;
 
-const SECRET_KEY: &[u8] = b"your_secret_key_here"; // TODO: Load from environment variable
+use crate::entities::employees;
+
+lazy_static! {
+    static ref JWT_SECRET: String = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
     pub sub: i32, // Employee ID
     pub email: String,
     pub role: String,
-    pub store_id: i32,
+    pub store_id: Option<i32>,
     pub exp: usize, // Expiration time
 }
 
 pub fn hash_password(password: &str) -> Result<String, DbErr> {
+    let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
-    let salt = SaltString::generate(OsRng);
-    let password_hash = argon2.hash_password(password.as_bytes(), &salt).map_err(|e| DbErr::Custom(e.to_string()))?;
+    let password_hash = argon2.hash_password(password.as_bytes(), &salt)
+        .map_err(|e| DbErr::Custom(e.to_string()))?;
     Ok(password_hash.to_string())
 }
 
 pub fn verify_password(password: &str, hash: &str) -> Result<bool, DbErr> {
     let parsed_hash = PasswordHash::new(hash).map_err(|e| DbErr::Custom(e.to_string()))?;
-    Argon2::default().verify_password(password.as_bytes(), &parsed_hash).map_err(|e| DbErr::Custom(e.to_string()))?;
-    Ok(true)
+    Ok(Argon2::default().verify_password(password.as_bytes(), &parsed_hash).is_ok())
 }
 
 pub fn create_jwt(employee: &employees::Model) -> Result<String, DbErr> {
@@ -44,11 +52,34 @@ pub fn create_jwt(employee: &employees::Model) -> Result<String, DbErr> {
         exp: expiration,
     };
 
-    encode(&Header::default(), &claims, &EncodingKey::from_secret(SECRET_KEY))
+    encode(&Header::default(), &claims, &EncodingKey::from_secret(JWT_SECRET.as_bytes()))
         .map_err(|e| DbErr::Custom(e.to_string()))
 }
 
 pub fn decode_jwt(token: &str) -> Result<TokenData<Claims>, DbErr> {
-    decode::<Claims>(token, &DecodingKey::from_secret(SECRET_KEY), &Validation::default())
+    decode::<Claims>(token, &DecodingKey::from_secret(JWT_SECRET.as_bytes()), &Validation::default())
         .map_err(|e| DbErr::Custom(e.to_string()))
+}
+
+impl FromRequest for Claims {
+    type Error = actix_web::Error;
+    type Future = Pin<Box<dyn Future<Output = Result<Self, Self::Error>>>>;
+
+    fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
+        let req = req.clone();
+        Box::pin(async move {
+            if let Some(auth_header) = req.headers().get(http::header::AUTHORIZATION) {
+                if let Ok(auth_str) = auth_header.to_str() {
+                    if auth_str.starts_with("Bearer ") {
+                        let token = &auth_str["Bearer ".len()..];
+                        return match decode_jwt(token) {
+                            Ok(token_data) => Ok(token_data.claims),
+                            Err(_) => Err(ErrorUnauthorized("Invalid token")),
+                        };
+                    }
+                }
+            }
+            Err(ErrorUnauthorized("Missing or invalid token"))
+        })
+    }
 }

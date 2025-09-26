@@ -13,3 +13,5 @@ pub mod payments;
 pub mod refunds;
 pub mod refund_items;
 pub mod promotions;
+pub mod purchase_orders;
+pub mod purchase_order_items;

@@ -8,7 +8,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .service(
                 web::scope("")
                     .wrap(RoleMiddlewareFactory {
-                        allowed_roles: vec!["Admin".to_string(), "StoreManager".to_string(), "Cashier".to_string()],
+                        allowed_roles: vec!["Owner".to_string(), "Admin".to_string(), "StoreManager".to_string(), "Cashier".to_string()],
                     })
                     .route("", web::get().to(order_items_handler::get_all_order_items))
                     .route("/{id}", web::get().to(order_items_handler::get_order_item_by_id))
@@ -24,7 +24,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .service(
                 web::scope("")
                     .wrap(RoleMiddlewareFactory {
-                        allowed_roles: vec!["Admin".to_string(), "StoreManager".to_string()],
+                        allowed_roles: vec!["Owner".to_string(), "Admin".to_string(), "StoreManager".to_string()],
                     })
                     .route("/{id}", web::delete().to(order_items_handler::delete_order_item))
             )

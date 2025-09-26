@@ -8,7 +8,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8080',
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       }
     }
@@ -18,13 +18,7 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('primevue')) {
-              return 'primevue';
-            }
-            if (id.includes('vue')) {
-              return 'vue';
-            }
-            return 'vendor';
+            return id.toString().split('node_modules/')[1].split('/')[0].toString();
           }
         },
       },

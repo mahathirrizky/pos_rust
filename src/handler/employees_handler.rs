@@ -1,3 +1,4 @@
+use crate::auth::auth_service::Claims;
 use crate::repository::employees_repository::EmployeeRepository;
 use actix_web::{web, HttpResponse, Responder};
 use crate::helper::response::{ApiResponse, ApiError};
@@ -5,17 +6,50 @@ use crate::entities::employees::{CreateEmployee, UpdateEmployee, EmployeeReportD
 use sea_orm::DatabaseConnection;
 use crate::guard::employee_guard::EmployeeAccessGuard;
 use crate::auth::auth_service;
-use crate::extractor::claims_extractor::ClaimsExtractor;
+// use crate::guard::role_guard::{Claims, has_role, ErrorResponse as RoleErrorResponse};
 
-pub async fn get_all_employees(db: web::Data<DatabaseConnection>) -> impl Responder {
-    match EmployeeRepository::get_all(db.get_ref()).await {
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+pub struct EmployeeFilter {
+    pub role: Option<String>,
+    pub store_id: Option<i32>,
+    #[serde(rename = "roles_to_exclude")]
+    pub roles_to_exclude: Option<String>,
+}
+
+pub async fn get_all_employees(db: web::Data<DatabaseConnection>, query: web::Query<EmployeeFilter>, claims: web::ReqData<Claims>) -> impl Responder {
+    let roles_to_exclude_vec = query.roles_to_exclude.as_ref().map(|s| {
+        s.split(',').map(|role_str| role_str.trim().to_string()).collect()
+    });
+
+    let effective_role_filter = query.role.clone();
+    let mut effective_store_id_filter = query.store_id;
+
+    // Apply role-based filtering
+    if claims.role == "StoreManager" {
+        // StoreManager can only see employees in their own store
+        if let Some(store_id) = claims.store_id {
+            effective_store_id_filter = Some(store_id);
+        } else {
+            // If StoreManager has no store_id, they shouldn't see any employees
+            return HttpResponse::Forbidden().json(ApiError::new("StoreManager has no assigned store".to_string()));
+        }
+        // StoreManager can only see roles they manage (e.g., Cashier, InventoryManager)
+        // For now, let's assume they can only see employees in their store, regardless of role filter from query
+        // If you want to restrict roles they can see, add logic here.
+    } else if claims.role == "Admin" || claims.role == "Owner" {
+        // Admin and Owner can see all employees (subject to query filters)
+        // No additional restrictions needed here based on their own store_id
+    }
+
+    match EmployeeRepository::get_all(db.get_ref(), effective_role_filter, effective_store_id_filter, roles_to_exclude_vec).await {
         Ok(employees) => HttpResponse::Ok().json(ApiResponse::new(employees)),
         Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to fetch employees".to_string())),
     }
 }
 
-pub async fn create_employee(db: web::Data<DatabaseConnection>, new_employee: web::Json<CreateEmployee>) -> impl Responder {
-    // Hash the password before saving
+pub async fn create_admin(db: web::Data<DatabaseConnection>, new_employee: web::Json<CreateEmployee>) -> impl Responder {
     let mut employee_data = new_employee.into_inner();
     let hashed_password = match auth_service::hash_password(&employee_data.password_hash) {
         Ok(hash) => hash,
@@ -23,9 +57,9 @@ pub async fn create_employee(db: web::Data<DatabaseConnection>, new_employee: we
     };
     employee_data.password_hash = hashed_password;
 
-    match EmployeeRepository::create(db.get_ref(), employee_data).await {
+    match EmployeeRepository::create(db.get_ref(), employee_data, "Admin".to_string()).await {
         Ok(employee) => HttpResponse::Ok().json(ApiResponse::new(employee)),
-        Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to create employee".to_string())),
+        Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to create admin".to_string())),
     }
 }
 
@@ -38,6 +72,9 @@ pub async fn get_my_profile(guard: EmployeeAccessGuard) -> impl Responder {
 }
 
 pub async fn update_employee(guard: EmployeeAccessGuard, db: web::Data<DatabaseConnection>, update_data: web::Json<UpdateEmployee>) -> impl Responder {
+    // if !has_role(&claims, &["Admin"]) {
+    //     return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Only Admin can update employees.".to_string()));
+    // }
     let employee_id = guard.employee.id;
     let mut employee_data = update_data.into_inner();
 
@@ -63,6 +100,9 @@ pub async fn update_employee(guard: EmployeeAccessGuard, db: web::Data<DatabaseC
 }
 
 pub async fn delete_employee(db: web::Data<DatabaseConnection>, id: web::Path<i32>) -> impl Responder {
+    // if !has_role(&claims, &["Admin"]) {
+    //     return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Only Admin can delete employees.".to_string()));
+    // }
     let employee_id = id.into_inner(); // Extract once
     match EmployeeRepository::delete(db.get_ref(), employee_id).await {
         Ok(rows_affected) if rows_affected > 0 => {
@@ -75,25 +115,27 @@ pub async fn delete_employee(db: web::Data<DatabaseConnection>, id: web::Path<i3
 
 pub async fn get_employee_report(
     db: web::Data<DatabaseConnection>,
-    claims: ClaimsExtractor,
+    claims: web::ReqData<Claims>,
 ) -> impl Responder {
-    if claims.0.role != "Admin" && claims.0.role != "StoreManager" {
+    let employees_result = if claims.role == "Admin" || claims.role == "Owner" {
+        EmployeeRepository::get_all(db.get_ref(), None, None, None).await
+    } else if claims.role == "StoreManager" {
+        if let Some(store_id) = claims.store_id {
+            EmployeeRepository::get_all_by_store(db.get_ref(), store_id).await
+        } else {
+            return HttpResponse::Forbidden().json(ApiError::new("StoreManager has no assigned store".to_string()));
+        }
+    } else {
+        // Other roles like Cashier cannot access this report
         return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Insufficient privileges".to_string()));
-    }
-
-    let employees = if claims.0.role == "Admin" {
-        match EmployeeRepository::get_all(db.get_ref()).await {
-            Ok(e) => e,
-            Err(_) => return HttpResponse::InternalServerError().json(ApiError::new("Failed to fetch employees".to_string())),
-        }
-    } else { // StoreManager
-        match EmployeeRepository::get_all_by_store(db.get_ref(), claims.0.store_id).await {
-            Ok(e) => e,
-            Err(_) => return HttpResponse::InternalServerError().json(ApiError::new("Failed to fetch employees by store".to_string())),
-        }
     };
 
-    let report_data: Vec<EmployeeReportData> = employees.into_iter().map(EmployeeReportData::from).collect();
-    HttpResponse::Ok().json(ApiResponse::new(report_data))
+    match employees_result {
+        Ok(employees) => {
+            let report_data: Vec<EmployeeReportData> = employees.into_iter().map(EmployeeReportData::from).collect();
+            HttpResponse::Ok().json(ApiResponse::new(report_data))
+        }
+        Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to fetch employee report".to_string())),
+    }
 }
 

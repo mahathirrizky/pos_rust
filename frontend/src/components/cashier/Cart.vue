@@ -3,6 +3,9 @@ import { computed } from 'vue';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
+import { useToast } from 'primevue/usetoast';
+import { useAuthStore } from '../../store/auth';
+
 
 const props = defineProps({
   cartItems: {
@@ -12,6 +15,8 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['increase-quantity', 'decrease-quantity', 'remove-item', 'clear-cart']);
+const toast = useToast();
+const authStore = useAuthStore();
 
 const total = computed(() => {
   return props.cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0).toFixed(2);
@@ -33,21 +38,49 @@ const handleClearCart = () => {
   emit('clear-cart');
 };
 
-const handlePayment = () => {
+const handlePayment = async () => {
   if (props.cartItems.length === 0) {
-    alert('Cart is empty!');
+    toast.add({ severity: 'warn', summary: 'Empty Cart', detail: 'Cannot process payment for an empty cart.', life: 3000 });
     return;
   }
-  console.log('Processing payment for:', props.cartItems);
-  console.log('Total:', total.value);
-  alert(`Processing payment for a total of Rp${total.value}`);
-  // Here you would typically call a backend API to create an order.
+
+  const payload = {
+    customer_id: 1, // Assuming a default customer for now
+    items: props.cartItems.map(item => ({
+      product_id: item.id,
+      quantity: item.quantity,
+      promotion_id: null, // Ignoring promotions for now
+    }))
+  };
+
+  try {
+    const response = await fetch('/api/orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to create order.');
+    }
+
+    toast.add({ severity: 'success', summary: 'Payment Successful', detail: 'Order has been created.', life: 3000 });
+    emit('clear-cart');
+
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Payment Failed', detail: err.message, life: 3000 });
+  }
 };
 
 </script>
 
 <template>
   <div class="card h-full flex flex-col">
+    
     <h2 class="text-2xl font-bold mb-4 p-4">Cart</h2>
     <div class="flex-grow overflow-auto">
       <DataTable :value="cartItems" responsiveLayout="scroll">

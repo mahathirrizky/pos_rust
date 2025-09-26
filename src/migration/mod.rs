@@ -4,6 +4,8 @@ pub use sea_orm_migration::prelude::*;
 mod m20250918_024324_create_table;
 mod m20250922_190000_create_refund_tables;
 mod m20250922_210000_create_promotions;
+mod m20250925_022138_seed_owner_and_store;
+mod m20250926_180000_create_purchase_orders;
 
 pub struct Migrator;
 
@@ -14,6 +16,8 @@ impl MigratorTrait for Migrator {
             Box::new(m20250918_024324_create_table::Migration),
             Box::new(m20250922_190000_create_refund_tables::Migration),
             Box::new(m20250922_210000_create_promotions::Migration),
+            Box::new(m20250925_022138_seed_owner_and_store::Migration),
+            Box::new(m20250926_180000_create_purchase_orders::Migration),
         ]
     }
 }

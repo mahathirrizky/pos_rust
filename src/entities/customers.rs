@@ -1,7 +1,9 @@
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize)]
+#[allow(dead_code)]
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateCustomer {
     pub first_name: String,
     pub last_name: String,
@@ -10,7 +12,8 @@ pub struct CreateCustomer {
     pub address: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateCustomer {
     pub first_name: Option<String>,
     pub last_name: Option<String>,

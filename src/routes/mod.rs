@@ -1,32 +1,33 @@
 use actix_web::web;
 
-mod categories_routes;
-mod suppliers_routes;
-mod stores_routes;
-mod customers_routes;
-mod employees_routes;
-mod products_routes;
-mod orders_routes;
-mod order_items_routes;
-mod inventory_routes;
-mod payments_routes;
-mod refunds_routes;
-mod promotions_routes;
+pub mod categories_routes;
+pub mod customers_routes;
+pub mod employees_routes;
+pub mod inventory_routes;
+pub mod order_items_routes;
+pub mod orders_routes;
+pub mod payments_routes;
+pub mod products_routes;
+pub mod promotions_routes;
+pub mod refunds_routes;
+pub mod stores_routes;
+pub mod suppliers_routes;
+pub mod reports_routes;
+pub mod purchase_orders_routes;
 
 pub fn configure_routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(
-        web::scope("/api")
-            .configure(categories_routes::configure_routes)
-            .configure(suppliers_routes::configure_routes)
-            .configure(stores_routes::configure_routes)
-            .configure(customers_routes::configure_routes)
-            .configure(employees_routes::configure_routes)
-            .configure(products_routes::configure_routes)
-            .configure(orders_routes::configure_routes)
-            .configure(order_items_routes::configure_routes)
-            .configure(inventory_routes::configure_routes)
-            .configure(payments_routes::configure_routes)
-            .configure(refunds_routes::configure_routes)
-            .configure(promotions_routes::configure_routes),
-    );
+    cfg.configure(categories_routes::configure_routes)
+       .configure(customers_routes::configure_routes)
+       .configure(employees_routes::configure_routes)
+       .configure(inventory_routes::configure_routes)
+       .configure(order_items_routes::configure_routes)
+       .configure(orders_routes::configure_routes)
+       .configure(payments_routes::configure_routes)
+       .configure(products_routes::configure_routes)
+       .configure(promotions_routes::configure_routes)
+       .configure(refunds_routes::configure_routes)
+       .configure(stores_routes::configure_routes)
+       .configure(suppliers_routes::configure_routes)
+       .configure(reports_routes::configure_routes)
+       .configure(purchase_orders_routes::configure_routes);
 }

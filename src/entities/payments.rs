@@ -10,7 +10,8 @@ pub struct CreatePayment {
     pub status: String,
 }
 
-#[derive(Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdatePayment {
     pub order_id: Option<i32>,
     pub payment_method: Option<String>,

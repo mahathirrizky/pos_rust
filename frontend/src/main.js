@@ -1,6 +1,8 @@
 import { createApp } from 'vue';
+import { createPinia } from 'pinia';
 import App from './App.vue';
 import router from './router'; // Import the new router
+import axios from 'axios';
 
 // PrimeVue
 import PrimeVue from 'primevue/config';
@@ -8,6 +10,7 @@ import Lara from '@primeuix/themes/lara';
 import { definePreset } from '@primeuix/themes';
 import Tooltip from 'primevue/tooltip';
 import ToastService from 'primevue/toastservice';
+import ConfirmationService from 'primevue/confirmationservice';
 
 // Styles
 import 'primeicons/primeicons.css';
@@ -54,9 +57,15 @@ app.directive('tooltip', Tooltip);
 
 // Use ToastService
 app.use(ToastService);
+app.use(ConfirmationService);
+
+// Use Pinia
+app.use(createPinia());
 
 // Use the router
 app.use(router);
+
+axios.defaults.baseURL = 'http://localhost:8000';
 
 app.mount('#app');
 

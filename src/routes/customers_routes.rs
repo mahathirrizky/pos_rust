@@ -6,7 +6,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/customers")
             .wrap(RoleMiddlewareFactory {
-                allowed_roles: vec!["Admin".to_string()],
+                allowed_roles: vec!["Owner".to_string(), "Admin".to_string()],
             })
             .route("", web::get().to(customers_handler::get_all_customers))
             .route("", web::post().to(customers_handler::create_customer))

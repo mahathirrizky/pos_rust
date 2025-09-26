@@ -12,7 +12,12 @@ pub async fn get_all_payments(claims: ClaimsExtractor, db: web::Data<DatabaseCon
     let result = if claims.0.role == "Admin" {
         PaymentRepository::get_all(db_ref).await
     } else if claims.0.role == "StoreManager" {
-        PaymentRepository::get_all_by_store(db_ref, claims.0.store_id).await
+        if let Some(store_id) = claims.0.store_id {
+            PaymentRepository::get_all_by_store(db_ref, store_id).await
+        } else {
+            // If a store manager has no store_id, return an empty list.
+            return HttpResponse::Ok().json(ApiResponse::new(Vec::<crate::entities::payments::Model>::new()));
+        }
     } else {
         PaymentRepository::get_all_by_employee(db_ref, claims.0.sub).await
     };
@@ -28,7 +33,7 @@ pub async fn create_payment(claims: ClaimsExtractor, db: web::Data<DatabaseConne
     let payment_data = new_payment.into_inner();
     match orders::Entity::find_by_id(payment_data.order_id).one(db_ref).await {
         Ok(Some(order)) => {
-            if (claims.0.role == "StoreManager" && order.store_id == claims.0.store_id) ||
+            if (claims.0.role == "StoreManager" && claims.0.store_id.map_or(false, |id| id == order.store_id)) ||
                (claims.0.role == "Cashier" && order.employee_id == claims.0.sub) {
                 match PaymentRepository::create(db_ref, payment_data).await {
                     Ok(payment) => HttpResponse::Ok().json(ApiResponse::new(payment)),

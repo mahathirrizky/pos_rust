@@ -35,7 +35,8 @@ pub struct InventoryReport {
     pub total_items: u64,
 }
 
-#[derive(Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
 pub struct InventoryReportQueryParams {
     pub store_id: Option<i32>,
     pub product_id: Option<i32>,

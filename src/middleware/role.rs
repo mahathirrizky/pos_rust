@@ -7,7 +7,8 @@ use actix_web::{
     HttpMessage,
 };
 use futures_util::future::LocalBoxFuture;
-use crate::auth::auth_service::Claims;
+use crate::auth::auth_service::{decode_jwt};
+use actix_web::http::header::AUTHORIZATION;
 
 pub struct RoleMiddlewareFactory {
     pub allowed_roles: Vec<String>,
@@ -55,16 +56,31 @@ where
         let allowed_roles = self.allowed_roles.clone();
 
         Box::pin(async move {
-            let claims = req.extensions().get::<Claims>().cloned();
+            let claims = if let Some(auth_header) = req.headers().get(AUTHORIZATION) {
+                if let Ok(auth_str) = auth_header.to_str() {
+                    if auth_str.starts_with("Bearer ") {
+                        let token = &auth_str["Bearer ".len()..];
+                        decode_jwt(token).ok().map(|token_data| token_data.claims)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
             if let Some(claims) = claims {
-                if allowed_roles.contains(&claims.role) {
-                    let fut = service.call(req);
-                    fut.await
+                if allowed_roles.is_empty() || allowed_roles.contains(&claims.role) {
+                    // Add claims to request extensions for handlers to use
+                    req.extensions_mut().insert(claims);
+                    service.call(req).await
                 } else {
                     Err(ErrorForbidden("Forbidden: Insufficient role"))
                 }
             } else {
-                Err(ErrorForbidden("Forbidden: No claims found"))
+                Err(ErrorForbidden("Forbidden: Invalid or missing token"))
             }
         })
     }

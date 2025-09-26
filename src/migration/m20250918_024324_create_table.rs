@@ -84,7 +84,7 @@ impl MigrationTrait for Migration {
                     .col(string(Employees::LastName).not_null())
                     .col(string_uniq(Employees::Email).not_null())
                     .col(string_null(Employees::Phone))
-                    .col(integer(Employees::StoreId).not_null())
+                    .col(integer(Employees::StoreId).null())
                     .col(string(Employees::Role).not_null())
                     .col(string(Employees::PasswordHash).not_null())
                     .col(timestamp_with_time_zone(Employees::CreatedAt).not_null().default(Expr::current_timestamp()))

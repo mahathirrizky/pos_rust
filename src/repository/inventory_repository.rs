@@ -23,12 +23,35 @@ impl InventoryRepository {
     }
 
     pub async fn increase_quantity<C: ConnectionTrait>(db: &C, product_id: i32, store_id: i32, quantity_to_add: i32) -> Result<inventory::Model, DbErr> {
+        let inventory_item = Self::find_by_product_and_store(db, product_id, store_id).await?;
+
+        if let Some(item) = inventory_item {
+            let mut active_model: inventory::ActiveModel = item.into();
+            active_model.quantity = ActiveValue::Set(active_model.quantity.as_ref() + quantity_to_add);
+            active_model.update(db).await
+        } else {
+            let new_inventory = inventory::ActiveModel {
+                product_id: ActiveValue::Set(product_id),
+                store_id: ActiveValue::Set(store_id),
+                quantity: ActiveValue::Set(quantity_to_add),
+                last_restocked: ActiveValue::Set(Some(chrono::Utc::now().into())),
+                ..Default::default()
+            };
+            new_inventory.insert(db).await
+        }
+    }
+
+    pub async fn decrease_quantity<C: ConnectionTrait>(db: &C, product_id: i32, store_id: i32, quantity_to_subtract: i32) -> Result<inventory::Model, DbErr> {
         let inventory_item = Self::find_by_product_and_store(db, product_id, store_id)
             .await?
-            .ok_or_else(|| DbErr::Custom("Inventory item not found".to_string()))?;
+            .ok_or_else(|| DbErr::Custom("Inventory item not found for this product and store.".to_string()))?;
+        
+        if inventory_item.quantity < quantity_to_subtract {
+            return Err(DbErr::Custom("Not enough stock to decrease quantity.".to_string()));
+        }
 
         let mut active_model: inventory::ActiveModel = inventory_item.into();
-        active_model.quantity = ActiveValue::Set(active_model.quantity.as_ref() + quantity_to_add);
+        active_model.quantity = ActiveValue::Set(active_model.quantity.as_ref() - quantity_to_subtract);
         active_model.update(db).await
     }
 

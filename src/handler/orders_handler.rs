@@ -24,10 +24,13 @@ pub async fn get_all_orders(claims: ClaimsExtractor, db: web::Data<DatabaseConne
             Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to fetch orders".to_string())),
         }
     } else if claims.0.role == "StoreManager" {
-        // Store Manager can view orders in their store
-        match OrderRepository::get_all_by_store(db.get_ref(), claims.0.store_id).await { 
-            Ok(orders) => HttpResponse::Ok().json(ApiResponse::new(orders)),
-            Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to fetch orders".to_string())),
+        if let Some(store_id) = claims.0.store_id {
+            match OrderRepository::get_all_by_store(db.get_ref(), store_id).await { 
+                Ok(orders) => HttpResponse::Ok().json(ApiResponse::new(orders)),
+                Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to fetch orders".to_string())),
+            }
+        } else {
+            HttpResponse::Forbidden().json(ApiError::new("StoreManager has no assigned store".to_string()))
         }
     } else {
         // Cashier can view orders they created
@@ -43,13 +46,17 @@ pub async fn create_order(
     db: web::Data<DatabaseConnection>,
     new_order_payload: web::Json<CreateOrderPayload>,
 ) -> impl Responder {
+    let store_id = match claims.0.store_id {
+        Some(id) => id,
+        None => return HttpResponse::Forbidden().json(ApiError::new("User is not assigned to a store".to_string())),
+    };
+
     let txn = match db.begin().await {
         Ok(txn) => txn,
         Err(e) => return HttpResponse::InternalServerError().json(ApiError::new(format!("Failed to start transaction: {}", e))),
     };
 
     let employee_id = claims.0.sub;
-    let store_id = claims.0.store_id;
     let customer_id = new_order_payload.customer_id;
 
     let mut total_order_amount = Decimal::new(0, 2);
@@ -124,7 +131,7 @@ pub async fn create_order(
         });
 
         // Deduct from inventory
-        if let Err(e) = InventoryRepository::increase_quantity(&txn, product.id, store_id, -item_payload.quantity).await {
+        if let Err(e) = InventoryRepository::decrease_quantity(&txn, product.id, store_id, item_payload.quantity).await {
             return HttpResponse::InternalServerError().json(ApiError::new(format!("Failed to deduct inventory for product {}: {}", product.name, e)));
         }
     }
@@ -204,7 +211,9 @@ pub async fn get_sales_report(
     }
     // If StoreManager, filter by their store_id
     if claims.0.role == "StoreManager" {
-        condition = condition.add(OrderColumn::StoreId.eq(claims.0.store_id));
+        if let Some(store_id) = claims.0.store_id {
+            condition = condition.add(OrderColumn::StoreId.eq(store_id));
+        }
     }
     if let Some(employee_id) = query_params.employee_id {
         condition = condition.add(OrderColumn::EmployeeId.eq(employee_id));

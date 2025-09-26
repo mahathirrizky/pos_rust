@@ -14,9 +14,13 @@ pub async fn get_all_order_items(claims: ClaimsExtractor, db: web::Data<Database
             Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to fetch order items".to_string())),
         }
     } else if claims.0.role == "StoreManager" {
-        match OrderItemRepository::get_all_by_store(db.get_ref(), claims.0.store_id).await {
-            Ok(order_items) => HttpResponse::Ok().json(ApiResponse::new(order_items)),
-            Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to fetch order items".to_string())),
+        if let Some(store_id) = claims.0.store_id {
+            match OrderItemRepository::get_all_by_store(db.get_ref(), store_id).await {
+                Ok(order_items) => HttpResponse::Ok().json(ApiResponse::new(order_items)),
+                Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to fetch order items for store".to_string())),
+            }
+        } else {
+            HttpResponse::Forbidden().json(ApiError::new("Store manager is not associated with a store".to_string()))
         }
     } else {
         match OrderItemRepository::get_all_by_employee(db.get_ref(), claims.0.sub).await {
@@ -68,4 +72,3 @@ pub async fn delete_order_item(guard: OrderItemAccessGuard, db: web::Data<Databa
         Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to delete order item".to_string())),
     }
 }
-

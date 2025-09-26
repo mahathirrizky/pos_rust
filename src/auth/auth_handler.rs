@@ -6,25 +6,38 @@ use crate::auth::auth_service;
 use crate::repository::employees_repository::EmployeeRepository;
 use serde::{Serialize, Deserialize};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct LoginPayload {
     pub email: String,
     pub password: String,
+    pub role: String,
 }
 
 #[derive(Serialize)]
-pub struct LoginResponse {
+pub struct LoginSuccessResponse {
     pub token: String,
-    pub employee: employees::Model,
+    pub user: employees::Model,
 }
 
 pub async fn login(db: web::Data<DatabaseConnection>, payload: web::Json<LoginPayload>) -> impl Responder {
+    println!("Received login attempt: {:?}", payload);
     match EmployeeRepository::find_by_email(&db, payload.email.clone()).await {
-        Ok(Some(employee)) => {
-            match auth_service::verify_password(&payload.password, &employee.password_hash) {
+        Ok(Some(user)) => {
+            // First, verify the password
+            match auth_service::verify_password(&payload.password, &user.password_hash) {
                 Ok(true) => {
-                    match auth_service::create_jwt(&employee) {
-                        Ok(token) => HttpResponse::Ok().json(ApiResponse::new(LoginResponse { token, employee })),
+                    // After password is ok, check the role
+                    if user.role != payload.role {
+                        return HttpResponse::Unauthorized().json(ApiError::new("Invalid credentials for this role!".to_string()));
+                    }
+
+                    // If role is also ok, create token
+                    match auth_service::create_jwt(&user) {
+                        Ok(token) => {
+                            let response_data = LoginSuccessResponse { token, user };
+                            println!("Sending success response");
+                            HttpResponse::Ok().json(ApiResponse::new(response_data))
+                        }
                         Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to create token".to_string())),
                     }
                 }

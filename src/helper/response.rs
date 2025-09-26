@@ -6,7 +6,8 @@ use actix_web::{
 use sea_orm::DbErr;
 use std::fmt;
 
-#[derive(Serialize)]
+#[allow(dead_code)]
+#[derive(Debug, Serialize)]
 pub struct ApiResponse<T> {
     pub success: bool,
     pub data: T,
@@ -36,6 +37,7 @@ impl ApiError {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub enum AppError {
     NotFound(String),

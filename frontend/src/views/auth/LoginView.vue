@@ -1,23 +1,23 @@
 <template>
   <div class="flex items-center justify-center min-h-screen bg-gray-100">
-    <div class="px-8 py-6 mt-4 text-left bg-white shadow-lg">
-      <h3 class="text-2xl font-bold text-center">Login to your account</h3>
-      <form @submit.prevent="handleLogin">
-        <div class="mt-4">
-          <div>
-            <label class="block" for="email">Email</label>
-            <input type="text" placeholder="Email"
-              class="w-full px-4 py-2 mt-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-600">
-          </div>
-          <div class="mt-4">
-            <label class="block" for="password">Password</label>
-            <input type="password" placeholder="Password"
-              class="w-full px-4 py-2 mt-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-600">
-          </div>
-          <div class="flex items-baseline justify-between">
-            <button class="px-6 py-2 mt-4 text-white bg-blue-600 rounded-lg hover:bg-blue-900">Login</button>
-            <a href="#" class="text-sm text-blue-600 hover:underline">Forgot password?</a>
-          </div>
+    <div class="w-full px-8 py-6 mt-4 text-left bg-white shadow-lg md:w-1/3">
+      <h3 class="text-2xl font-bold text-center">Login to {{ formattedRole }} Account</h3>
+      <form @submit.prevent="handleLogin" class="p-fluid">
+        <div class="mt-4 mb-4">
+          <FloatLabel variant="on">
+            <InputText id="email" type="text" v-model="email" variant="filled" fluid />
+            <label for="email">Email</label>
+          </FloatLabel>
+        </div>
+        <div class="mt-4 mb-4">
+          <FloatLabel variant="on">
+            <Password id="password" v-model="password" :feedback="false" variant="filled" :toggleMask="true" fluid />
+            <label for="password">Password</label>
+          </FloatLabel>
+        </div>
+        <div class="flex items-baseline justify-between">
+          <Button type="submit" :label="isLoading ? 'Logging in...' : 'Login'" :loading="isLoading" class="mt-4" />
+          <a href="#" class="text-sm text-blue-600 hover:underline">Forgot password?</a>
         </div>
       </form>
     </div>
@@ -25,19 +25,67 @@
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router';
+import { ref, computed } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import { useAuthStore } from '../../store/auth';
+import InputText from 'primevue/inputtext';
+import Password from 'primevue/password';
+import Button from 'primevue/button';
+import FloatLabel from 'primevue/floatlabel';
 
 const router = useRouter();
+const route = useRoute();
+const authStore = useAuthStore();
 
-const handleLogin = () => {
-  // Dummy login logic
-  // In a real app, this would involve API calls and token storage
-  console.log('Attempting login...');
-  // After successful login, redirect to a default authenticated route, e.g., /cashier
-  router.push('/cashier');
+const email = ref('owner@example.com'); // Default for easier testing
+const password = ref('password123'); // Default for easier testing
+const isLoading = ref(false);
+
+const pageRole = computed(() => {
+  const pathParts = route.path.split('/');
+  if (pathParts.length > 1 && pathParts[1]) {
+    const roleSlug = pathParts[1];
+    return roleSlug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('');
+  }
+  return '';
+});
+
+const formattedRole = computed(() => {
+  if (!pageRole.value) return '';
+  return pageRole.value.replace(/([A-Z])/g, ' $1').trim();
+});
+
+const handleLogin = async () => {
+  console.log('Login button clicked'); // Log 1: Button click event
+  if (!email.value || !password.value) {
+    alert('Email and password are required.');
+    return;
+  }
+
+  isLoading.value = true;
+
+  try {
+    const credentials = {
+        email: email.value,
+        password: password.value,
+        role: pageRole.value,
+    };
+    console.log('Sending credentials to store:', credentials); // Log 2: Credentials being sent
+
+    await authStore.login(credentials);
+
+    const dashboardPath = `/${pageRole.value.toLowerCase()}`;
+    router.push(dashboardPath);
+
+  } catch (error) {
+    console.error('Login failed:', error);
+    alert(`Login failed: ${error.message}`);
+  } finally {
+    isLoading.value = false;
+  }
 };
 </script>
 
 <style scoped>
-/* Scoped styles for this component */
+/* Your styles here */
 </style>

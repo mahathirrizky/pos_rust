@@ -6,7 +6,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/inventory")
             .wrap(RoleMiddlewareFactory {
-                allowed_roles: vec!["Admin".to_string(), "StoreManager".to_string(), "InventoryManager".to_string()],
+                allowed_roles: vec!["Owner".to_string(), "Admin".to_string(), "StoreManager".to_string(), "InventoryManager".to_string()],
             })
             .route("", web::get().to(inventory_handler::get_all_inventory))
             .route("", web::post().to(inventory_handler::create_inventory))

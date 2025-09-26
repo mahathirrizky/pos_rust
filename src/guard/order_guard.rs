@@ -12,6 +12,7 @@ use crate::extractor::claims_extractor::ClaimsExtractor;
 use crate::repository::orders_repository::OrderRepository;
 use sea_orm::DatabaseConnection;
 
+#[allow(dead_code)]
 pub struct OrderAccessGuard {
     pub claims: Claims,
     pub order: orders::Model,
@@ -45,7 +46,7 @@ impl FromRequest for OrderAccessGuard {
             let has_access = if claims.role == "Admin" {
                 true
             } else if claims.role == "StoreManager" {
-                order.store_id == claims.store_id
+                order.store_id == claims.store_id.unwrap_or(-1)
             } else {
                 order.employee_id == claims.sub
             };

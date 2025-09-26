@@ -8,10 +8,11 @@ use std::pin::Pin;
 use std::future::Future;
 
 use crate::entities::employees;
-use crate::extractor::claims_extractor::ClaimsExtractor;
+use crate::auth::auth_service::Claims;
 use crate::repository::employees_repository::EmployeeRepository;
 use sea_orm::DatabaseConnection;
 
+#[allow(dead_code)]
 pub struct EmployeeAccessGuard {
     pub employee: employees::Model,
 }
@@ -25,8 +26,7 @@ impl FromRequest for EmployeeAccessGuard {
         let mut payload = payload.take();
 
         Box::pin(async move {
-            let claims_extractor = ClaimsExtractor::from_request(&req, &mut payload).await?;
-            let claims = claims_extractor.0;
+            let claims = Claims::from_request(&req, &mut payload).await?;
 
             let target_id: i32 = req.match_info()
                 .get("id")
@@ -44,7 +44,7 @@ impl FromRequest for EmployeeAccessGuard {
             let has_access = if claims.role == "Admin" {
                 true
             } else if claims.role == "StoreManager" {
-                employee.store_id == claims.store_id
+                claims.store_id == employee.store_id
             } else {
                 employee.id == claims.sub
             };

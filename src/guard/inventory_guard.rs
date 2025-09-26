@@ -7,10 +7,11 @@ use std::pin::Pin;
 use std::future::Future;
 
 use crate::entities::inventory;
-use crate::extractor::claims_extractor::ClaimsExtractor;
+use crate::auth::auth_service::Claims;
 use crate::repository::inventory_repository::InventoryRepository;
 use sea_orm::DatabaseConnection;
 
+#[allow(dead_code)]
 pub struct InventoryAccessGuard {
     pub inventory: inventory::Model,
 }
@@ -24,8 +25,7 @@ impl FromRequest for InventoryAccessGuard {
         let mut payload = payload.take();
 
         Box::pin(async move {
-            let claims_extractor = ClaimsExtractor::from_request(&req, &mut payload).await?;
-            let claims = claims_extractor.0;
+            let claims = Claims::from_request(&req, &mut payload).await?;
 
             let target_id: i32 = req.match_info()
                 .get("id")
@@ -43,7 +43,7 @@ impl FromRequest for InventoryAccessGuard {
             let has_access = if claims.role == "Admin" {
                 true
             } else {
-                inventory.store_id == claims.store_id
+                claims.store_id == Some(inventory.store_id)
             };
 
             if has_access {

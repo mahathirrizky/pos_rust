@@ -10,7 +10,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .service(
                 web::scope("")
                     .wrap(RoleMiddlewareFactory {
-                        allowed_roles: vec!["Admin".to_string()],
+                        allowed_roles: vec!["Owner".to_string()],
                     })
                     .route("", web::post().to(categories_handler::create_category))
                     .route("/{id}", web::put().to(categories_handler::update_category))

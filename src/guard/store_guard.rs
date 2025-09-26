@@ -7,10 +7,11 @@ use std::pin::Pin;
 use std::future::Future;
 
 use crate::entities::stores;
-use crate::extractor::claims_extractor::ClaimsExtractor;
+use crate::auth::auth_service::Claims;
 use crate::repository::stores_repository::StoreRepository;
 use sea_orm::DatabaseConnection;
 
+#[allow(dead_code)]
 pub struct StoreAccessGuard {
     pub store: stores::Model,
 }
@@ -24,8 +25,7 @@ impl FromRequest for StoreAccessGuard {
         let mut payload = payload.take();
 
         Box::pin(async move {
-            let claims_extractor = ClaimsExtractor::from_request(&req, &mut payload).await?;
-            let claims = claims_extractor.0;
+            let claims = Claims::from_request(&req, &mut payload).await?;
 
             let target_id: i32 = req.match_info()
                 .get("id")
@@ -40,11 +40,11 @@ impl FromRequest for StoreAccessGuard {
                 .map_err(|_| ErrorForbidden("Error fetching store"))?
                 .ok_or_else(|| ErrorNotFound("Store not found"))?;
 
-            let has_access = if claims.role == "Admin" {
+            let has_access = if claims.role == "Admin" || claims.role == "Owner" {
                 true
             } else {
-                // Store Managers and other employees can only access their own store.
-                store.id == claims.store_id
+                // Ensure both store_id are Some and match
+                claims.store_id == Some(store.id)
             };
 
             if has_access {

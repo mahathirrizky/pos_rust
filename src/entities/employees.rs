@@ -1,4 +1,4 @@
-use sea_orm::entity::prelude::*;
+use sea_orm::{entity::prelude::*, FromQueryResult};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
@@ -7,8 +7,7 @@ pub struct CreateEmployee {
     pub last_name: String,
     pub email: String,
     pub phone: Option<String>,
-    pub store_id: i32,
-    pub role: String,
+    pub store_id: Option<i32>,
     pub password_hash: String,
 }
 
@@ -23,14 +22,15 @@ pub struct UpdateEmployee {
     pub password_hash: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[allow(dead_code)]
+#[derive(Debug, Serialize, FromQueryResult)]
 pub struct EmployeeReportData {
     pub id: i32,
     pub first_name: String,
     pub last_name: String,
     pub email: String,
     pub phone: Option<String>,
-    pub store_id: i32,
+    pub store_id: Option<i32>,
     pub role: String,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,
@@ -63,7 +63,8 @@ pub struct Model {
     pub email: String,
     #[sea_orm(nullable)]
     pub phone: Option<String>,
-    pub store_id: i32,
+    #[sea_orm(nullable)]
+    pub store_id: Option<i32>,
     pub role: String,
     pub password_hash: String,
     pub created_at: DateTimeUtc,

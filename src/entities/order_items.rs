@@ -2,7 +2,8 @@ use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
 // This is the new payload from the client for an order item
-#[derive(Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateOrderItemPayload {
     pub product_id: i32,
     pub quantity: i32,
