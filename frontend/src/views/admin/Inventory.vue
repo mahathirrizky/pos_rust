@@ -7,12 +7,15 @@ import Toolbar from 'primevue/toolbar';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import Tag from 'primevue/tag';
-import Dropdown from 'primevue/dropdown';
+import Select from 'primevue/select';
 import InputNumber from 'primevue/inputnumber';
 import FloatLabel from 'primevue/floatlabel';
+import { useInventoryStore } from '../../store/inventory';
+import { useToast } from 'primevue/usetoast';
 
-const inventory = ref([]);
-const stores = ref([]);
+const inventoryStore = useInventoryStore();
+const toast = useToast();
+
 const selectedItem = ref(null);
 const adjustmentDialog = ref(false);
 const newQuantity = ref(0);
@@ -20,28 +23,16 @@ const newQuantity = ref(0);
 // Filters
 const filterStore = ref();
 
-// Dummy data mimicking backend response
-const dummyData = [
-    { inventory_id: 1, product_id: 1, product_name: 'Laptop', store_id: 1, store_name: 'Main Street Store', quantity: 25, last_restocked: '2025-09-15T10:00:00Z', updated_at: '2025-09-22T10:00:00Z' },
-    { inventory_id: 2, product_id: 2, product_name: 'Mouse', store_id: 1, store_name: 'Main Street Store', quantity: 8, last_restocked: '2025-09-20T11:00:00Z', updated_at: '2025-09-22T11:00:00Z' },
-    { inventory_id: 3, product_id: 3, product_name: 'Keyboard', store_id: 1, store_name: 'Main Street Store', quantity: 0, last_restocked: '2025-08-30T09:00:00Z', updated_at: '2025-09-15T09:00:00Z' },
-    { inventory_id: 4, product_id: 1, product_name: 'Laptop', store_id: 2, store_name: 'Downtown Branch', quantity: 15, last_restocked: '2025-09-10T14:00:00Z', updated_at: '2025-09-21T14:00:00Z' },
-    { inventory_id: 5, product_id: 4, product_name: 'Webcam', store_id: 2, store_name: 'Downtown Branch', quantity: 40, last_restocked: '2025-09-10T14:00:00Z', updated_at: '2025-09-18T14:00:00Z' },
-    { inventory_id: 6, product_id: 3, product_name: 'Keyboard', store_id: 3, store_name: 'Uptown Plaza', quantity: 12, last_restocked: '2025-09-18T12:00:00Z', updated_at: '2025-09-22T12:00:00Z' },
-];
-
 onMounted(() => {
-  inventory.value = dummyData;
-  // Create a unique list of stores for the filter dropdown
-  const storeSet = new Set(dummyData.map(item => item.store_name));
-  stores.value = ['All Stores', ...Array.from(storeSet)];
+  inventoryStore.fetchInventory();
+  inventoryStore.fetchStores();
 });
 
 const filteredInventory = computed(() => {
     if (!filterStore.value || filterStore.value === 'All Stores') {
-        return inventory.value;
+        return inventoryStore.inventory;
     }
-    return inventory.value.filter(item => item.store_name === filterStore.value);
+    return inventoryStore.inventory.filter(item => item.store_name === filterStore.value);
 });
 
 const openAdjustmentDialog = (item) => {
@@ -50,12 +41,13 @@ const openAdjustmentDialog = (item) => {
   adjustmentDialog.value = true;
 };
 
-const saveAdjustment = () => {
+const saveAdjustment = async () => {
     if (selectedItem.value) {
-        const index = inventory.value.findIndex(item => item.inventory_id === selectedItem.value.inventory_id);
-        if (index > -1) {
-            inventory.value[index].quantity = newQuantity.value;
-            inventory.value[index].updated_at = new Date().toISOString();
+        try {
+            await inventoryStore.adjustInventory(selectedItem.value.inventory_id, newQuantity.value);
+            toast.add({ severity: 'success', summary: 'Success', detail: 'Inventory adjusted successfully', life: 3000 });
+        } catch (error) {
+            toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to adjust inventory', life: 3000 });
         }
     }
     adjustmentDialog.value = false;
@@ -86,7 +78,7 @@ const getStockLevel = (quantity) => {
       <template #content>
         <Toolbar class="mb-4">
           <template #start>
-            <Dropdown v-model="filterStore" :options="stores" placeholder="Filter by Store" class="w-full md:w-20rem" />
+            <Select v-model="filterStore" :options="inventoryStore.stores" placeholder="Filter by Store" class="w-full md:w-20rem" />
           </template>
         </Toolbar>
 

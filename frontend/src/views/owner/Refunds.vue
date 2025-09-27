@@ -1,38 +1,15 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { onMounted } from 'vue';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Card from 'primevue/card';
 import Button from 'primevue/button';
+import { useRefundStore } from '../../store/refund';
 
-const refunds = ref([]);
-
-// Dummy data mimicking backend response
-const dummyData = [
-    {
-        id: 1,
-        order_id: 101,
-        employee_id: 3,
-        store_id: 1,
-        reason: 'Customer dissatisfaction',
-        total_amount: '85.50',
-        created_at: '2025-09-22T14:00:00Z',
-        updated_at: '2025-09-22T14:05:00Z',
-    },
-    {
-        id: 2,
-        order_id: 102,
-        employee_id: 3,
-        store_id: 1,
-        reason: 'Wrong item purchased',
-        total_amount: '150.75',
-        created_at: '2025-09-21T16:30:00Z',
-        updated_at: '2025-09-21T16:30:00Z',
-    },
-];
+const refundStore = useRefundStore();
 
 onMounted(() => {
-  refunds.value = dummyData;
+  refundStore.fetchRefunds();
 });
 
 const formatCurrency = (value) => {
@@ -65,7 +42,7 @@ const viewRefundDetails = (refund) => {
         </div>
       </template>
       <template #content>
-        <DataTable :value="refunds" responsiveLayout="scroll">
+        <DataTable :value="refundStore.refunds" responsiveLayout="scroll">
           <Column field="id" header="Refund ID" :sortable="true"></Column>
           <Column field="order_id" header="Order ID" :sortable="true"></Column>
           <Column field="total_amount" header="Amount" :sortable="true">

@@ -4,13 +4,14 @@ use crate::helper::response::{ApiResponse, ApiError};
 use crate::auth::auth_service::Claims;
 use crate::entities::inventory::{CreateInventory, UpdateInventory, InventoryReport, InventoryReportQueryParams, InventoryReportItem};
 use sea_orm::{DatabaseConnection, QuerySelect, ColumnTrait, Condition, EntityTrait, QueryFilter};
-// use crate::guard::role_guard::{Claims, has_role, ErrorResponse as RoleErrorResponse};
 use crate::guard::inventory_guard::InventoryAccessGuard;
 use crate::entities::inventory::Column as InventoryColumn;
 use crate::entities::inventory::Entity as InventoryEntity;
 use crate::entities::{products, stores};
 use sea_orm::prelude::DateTimeUtc;
 use std::str::FromStr;
+use actix::Addr;
+use crate::websocket::broadcaster::Broadcaster;
 
 pub async fn get_all_inventory(db: web::Data<DatabaseConnection>, claims: web::ReqData<Claims>) -> impl Responder {
     let result = if claims.role == "Admin" || claims.role == "Owner" {
@@ -31,15 +32,14 @@ pub async fn get_all_inventory(db: web::Data<DatabaseConnection>, claims: web::R
     }
 }
 
-pub async fn create_inventory(db: web::Data<DatabaseConnection>, new_inventory: web::Json<CreateInventory>) -> impl Responder {
-    // if !has_role(&claims, &["Admin"]) {
-    //     return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Only Admin can create inventory.".to_string()));
-    // }
-
+pub async fn create_inventory(db: web::Data<DatabaseConnection>, new_inventory: web::Json<CreateInventory>, broadcaster: web::Data<Addr<Broadcaster>>) -> impl Responder {
     let inventory_data = new_inventory.into_inner();
 
     match InventoryRepository::create(db.get_ref(), inventory_data).await {
-        Ok(inventory) => HttpResponse::Ok().json(ApiResponse::new(inventory)),
+        Ok(inventory) => {
+            broadcaster.do_send(crate::websocket::broadcaster::BroadcastMessage("inventory_updated".to_string()));
+            HttpResponse::Ok().json(ApiResponse::new(inventory))
+        },
         Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to create inventory".to_string())),
     }
 }
@@ -48,25 +48,20 @@ pub async fn get_inventory_by_id(guard: InventoryAccessGuard) -> impl Responder 
     HttpResponse::Ok().json(ApiResponse::new(guard.inventory))
 }
 
-pub async fn update_inventory(guard: InventoryAccessGuard, db: web::Data<DatabaseConnection>, update_data: web::Json<UpdateInventory>) -> impl Responder {
-    // if !has_role(&claims, &["Admin"]) {
-    //     return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Only Admin can update inventory.".to_string()));
-    // }
+pub async fn update_inventory(guard: InventoryAccessGuard, db: web::Data<DatabaseConnection>, update_data: web::Json<UpdateInventory>, broadcaster: web::Data<Addr<Broadcaster>>) -> impl Responder {
     let item_id = guard.inventory.id;
-    match InventoryRepository::update(db.get_ref(), item_id, update_data.into_inner()).await {
+    match InventoryRepository::update(db.get_ref(), item_id, update_data.into_inner(), broadcaster.get_ref()).await {
         Ok(Some(item)) => HttpResponse::Ok().json(ApiResponse::new(item)),
         Ok(None) => HttpResponse::NotFound().json(ApiError::new("Inventory not found".to_string())),
         Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to update inventory".to_string())),
     }
 }
 
-pub async fn delete_inventory(guard: InventoryAccessGuard, db: web::Data<DatabaseConnection>) -> impl Responder {
-    // if !has_role(&claims, &["Admin"]) {
-    //     return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Only Admin can delete inventory.".to_string()));
-    // }
+pub async fn delete_inventory(guard: InventoryAccessGuard, db: web::Data<DatabaseConnection>, broadcaster: web::Data<Addr<Broadcaster>>) -> impl Responder {
     let item_id = guard.inventory.id;
     match InventoryRepository::delete(db.get_ref(), item_id).await {
         Ok(rows_affected) if rows_affected > 0 => {
+            broadcaster.do_send(crate::websocket::broadcaster::BroadcastMessage("inventory_updated".to_string()));
             HttpResponse::Ok().json(ApiResponse::new("Inventory deleted successfully".to_string()))
         }
         Ok(_) => HttpResponse::NotFound().json(ApiError::new("Inventory not found".to_string())),
@@ -78,20 +73,12 @@ pub async fn get_inventory_report(
     db: web::Data<DatabaseConnection>,
     query_params: web::Query<InventoryReportQueryParams>,
 ) -> impl Responder {
-    // if !has_role(&claims, &["Admin"]) {
-    //     return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Insufficient privileges".to_string()));
-    // }
 
     let mut condition = Condition::all();
 
     if let Some(store_id) = query_params.store_id {
         condition = condition.add(InventoryColumn::StoreId.eq(store_id));
     }
-    // If StoreManager, filter by their store_id
-    // This logic is now broken because it depends on claims.
-    // if claims.0.role == "StoreManager" {
-    //     condition = condition.add(InventoryColumn::StoreId.eq(claims.0.store_id));
-    // }
     if let Some(product_id) = query_params.product_id {
         condition = condition.add(InventoryColumn::ProductId.eq(product_id));
     }

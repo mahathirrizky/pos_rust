@@ -178,7 +178,7 @@ const formatCurrency = (value) => {
         </div>
         <div class="field col-12 p-2">
             <FloatLabel variant="on">
-                <Dropdown id="supplier_id" v-model="product.supplier_id" :options="productStore.suppliers" optionLabel="label" optionValue="value" placeholder="Select a Supplier" fluid variant="filled"></Dropdown>
+                <Select id="supplier_id" v-model="product.supplier_id" :options="productStore.suppliers" optionLabel="label" optionValue="value" placeholder="Select a Supplier" fluid variant="filled"></Select>
                 <label for="supplier_id">Supplier</label>
             </FloatLabel>
         </div>

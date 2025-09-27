@@ -7,46 +7,22 @@ import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import Tag from 'primevue/tag';
 import Toolbar from 'primevue/toolbar';
-import Calendar from 'primevue/calendar';
+import DatePicker from 'primevue/datepicker';
+import { useRefundStore } from '../../store/refund';
 
-const refunds = ref([]);
+const refundStore = useRefundStore();
 const selectedRefund = ref(null);
 const refundDetailsDialog = ref(false);
 const filterDate = ref();
 
-// Dummy data mimicking backend response
-const dummyData = [
-    {
-        id: 1, order_id: 1004, customer_name: 'Diana Prince', employee_name: 'Jane Smith', store_name: 'Uptown Plaza', reason: 'Customer dissatisfaction', total_amount: '85.50', status: 'Completed',
-        created_at: '2025-09-22T14:00:00Z', updated_at: '2025-09-22T14:05:00Z',
-        items: [
-            { product_name: 'Webcam', quantity: 1, amount: '85.50' }
-        ]
-    },
-    {
-        id: 2, order_id: 1002, customer_name: 'Bob Williams', employee_name: 'John Doe', store_name: 'Downtown Branch', reason: 'Wrong item purchased', total_amount: '150.75', status: 'Completed',
-        created_at: '2025-09-21T16:30:00Z', updated_at: '2025-09-21T16:30:00Z',
-        items: [
-            { product_name: 'Keyboard', quantity: 1, amount: '150.75' }
-        ]
-    },
-    {
-        id: 3, order_id: 1001, customer_name: 'Alice Johnson', employee_name: 'Jane Smith', store_name: 'Main Street Store', reason: 'Product defective', total_amount: '1200.50', status: 'Processing',
-        created_at: '2025-09-23T09:00:00Z', updated_at: '2025-09-23T09:00:00Z',
-        items: [
-            { product_name: 'Laptop', quantity: 1, amount: '1200.50' }
-        ]
-    },
-];
-
 onMounted(() => {
-  refunds.value = dummyData;
+  refundStore.fetchRefunds();
 });
 
 const filteredRefunds = computed(() => {
-    if (!filterDate.value) return refunds.value;
+    if (!filterDate.value) return refundStore.refunds;
     const selectedDate = new Date(filterDate.value).toLocaleDateString();
-    return refunds.value.filter(refund => new Date(refund.created_at).toLocaleDateString() === selectedDate);
+    return refundStore.refunds.filter(refund => new Date(refund.created_at).toLocaleDateString() === selectedDate);
 });
 
 const formatCurrency = (value) => {
@@ -84,7 +60,7 @@ const getStatusSeverity = (status) => {
       <template #content>
         <Toolbar class="mb-4">
             <template #start>
-                <Calendar v-model="filterDate" placeholder="Filter by Date" dateFormat="mm/dd/yy" />
+                <DatePicker v-model="filterDate" placeholder="Filter by Date" dateFormat="mm/dd/yy" />
             </template>
         </Toolbar>
 

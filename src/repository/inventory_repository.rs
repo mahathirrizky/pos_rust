@@ -1,5 +1,7 @@
 use sea_orm::{DbErr, EntityTrait, ActiveModelTrait, ActiveValue, ColumnTrait, QueryFilter, ConnectionTrait};
 use crate::entities::inventory;
+use actix::Addr;
+use crate::websocket::broadcaster::{Broadcaster, BroadcastMessage};
 
 pub struct InventoryRepository;
 
@@ -70,7 +72,12 @@ impl InventoryRepository {
         inventory::Entity::find_by_id(id).one(db).await
     }
 
-    pub async fn update<C: ConnectionTrait>(db: &C, id: i32, update_data: inventory::UpdateInventory) -> Result<Option<inventory::Model>, DbErr> {
+    pub async fn update<C: ConnectionTrait>(
+        db: &C, 
+        id: i32, 
+        update_data: inventory::UpdateInventory,
+        broadcaster: &Addr<Broadcaster>,
+    ) -> Result<Option<inventory::Model>, DbErr> {
         let inventory: Option<inventory::Model> = inventory::Entity::find_by_id(id).one(db).await?;
         if let Some(inventory) = inventory {
             let mut active_model: inventory::ActiveModel = inventory.into();
@@ -86,7 +93,11 @@ impl InventoryRepository {
             if let Some(last_restocked) = update_data.last_restocked {
                 active_model.last_restocked = ActiveValue::Set(Some(last_restocked));
             }
-            Ok(Some(active_model.update(db).await?))
+            let result = active_model.update(db).await?;
+
+            broadcaster.do_send(BroadcastMessage("inventory_updated".to_string()));
+
+            Ok(Some(result))
         } else {
             Ok(None)
         }

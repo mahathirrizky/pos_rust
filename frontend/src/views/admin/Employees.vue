@@ -13,6 +13,7 @@ import Password from 'primevue/password';
 import Select from 'primevue/select';
 import FloatLabel from 'primevue/floatlabel';
 import { useEmployeeStore } from '../../store/employee';
+import ConfirmDialog from 'primevue/confirmdialog';
 
 const confirm = useConfirm();
 const toast = useToast();

@@ -211,7 +211,7 @@ const formatDate = (value) => {
   <Dialog v-model:visible="itemDialog" :style="{width: '450px'}" header="Add Item to PO" :modal="true" class="p-fluid">
     <div class="field mt-4">
         <FloatLabel>
-            <Dropdown id="product" v-model="newItem.product_id" :options="productStore.products" optionLabel="name" optionValue="id" placeholder="Select a Product" :class="{'p-invalid': submitted && !newItem.product_id}" filter></Dropdown>
+            <Select id="product" v-model="newItem.product_id" :options="productStore.products" optionLabel="name" optionValue="id" placeholder="Select a Product" :class="{'p-invalid': submitted && !newItem.product_id}" filter></Select>
             <label for="product">Product</label>
         </FloatLabel>
     </div>

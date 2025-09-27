@@ -1,6 +1,19 @@
 use sea_orm::{entity::prelude::*, FromQueryResult};
 use serde::{Deserialize, Serialize};
 
+#[derive(Serialize)]
+pub struct EmployeeResponse {
+    pub id: i32,
+    pub first_name: String,
+    pub last_name: String,
+    pub email: String,
+    pub phone: Option<String>,
+    pub store_id: Option<i32>,
+    pub role: String,
+    pub created_at: DateTimeUtc,
+    pub updated_at: DateTimeUtc,
+}
+
 #[derive(Deserialize)]
 pub struct CreateEmployee {
     pub first_name: String,
@@ -79,6 +92,22 @@ pub enum Relation {
         to = "super::stores::Column::Id"
     )]
     Store,
+}
+
+impl From<Model> for EmployeeResponse {
+    fn from(model: Model) -> Self {
+        Self {
+            id: model.id,
+            first_name: model.first_name,
+            last_name: model.last_name,
+            email: model.email,
+            phone: model.phone,
+            store_id: model.store_id,
+            role: model.role,
+            created_at: model.created_at,
+            updated_at: model.updated_at,
+        }
+    }
 }
 
 impl Related<super::stores::Entity> for Entity {

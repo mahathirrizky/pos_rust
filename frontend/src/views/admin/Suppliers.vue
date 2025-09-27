@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useConfirm } from "primevue/useconfirm";
+import { useToast } from "primevue/usetoast";
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Card from 'primevue/card';
@@ -11,64 +12,19 @@ import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
 import Avatar from 'primevue/avatar';
 import FloatLabel from 'primevue/floatlabel';
+import { useSupplierStore } from '../../store/supplier';
 
 const confirm = useConfirm();
-const suppliers = ref([]);
+const toast = useToast();
+const supplierStore = useSupplierStore();
+
 const selectedSuppliers = ref([]);
 const supplierDialog = ref(false);
 const submitted = ref(false);
 const supplier = ref({});
 
-// Dummy data mimicking backend response
-const dummyData = [
-    {
-        id: 1,
-        name: 'Tech Innovators Inc.',
-        contact_person: 'Alex Green',
-        email: 'alex@techinnovators.com',
-        phone: '111-222-3333',
-        address: '123 Tech Road, Silicon Valley, CA',
-        product_count: 15,
-        created_at: '2025-01-15T09:30:00Z',
-        updated_at: '2025-08-01T14:00:00Z',
-    },
-    {
-        id: 2,
-        name: 'Office Gear Co.',
-        contact_person: 'Sarah Brown',
-        email: 'sarah@officegear.com',
-        phone: '444-555-6666',
-        address: '456 Office Park, Business City, NY',
-        product_count: 32,
-        created_at: '2024-11-20T11:00:00Z',
-        updated_at: '2025-07-25T10:15:00Z',
-    },
-    {
-        id: 3,
-        name: 'Global Foods Distribution',
-        contact_person: 'David Chen',
-        email: 'david.chen@globalfoods.com',
-        phone: '777-888-9999',
-        address: '789 Food Plaza, Gourmet Town, TX',
-        product_count: 112,
-        created_at: '2023-05-10T15:00:00Z',
-        updated_at: '2025-09-20T18:00:00Z',
-    },
-    {
-        id: 4,
-        name: 'Fashion Forward Fabrics',
-        contact_person: 'Maria Garcia',
-        email: 'maria@fashionfabrics.com',
-        phone: '321-654-9870',
-        address: '101 Fashion Ave, Style City, FL',
-        product_count: 250,
-        created_at: '2024-08-30T09:00:00Z',
-        updated_at: '2025-09-15T12:30:00Z',
-    },
-];
-
 onMounted(() => {
-  suppliers.value = dummyData;
+  supplierStore.fetchSuppliers();
 });
 
 const openNew = () => {
@@ -82,23 +38,17 @@ const hideDialog = () => {
   submitted.value = false;
 };
 
-const saveSupplier = () => {
+const saveSupplier = async () => {
   submitted.value = true;
   if (supplier.value.name && supplier.value.email) {
-    if (supplier.value.id) {
-      const index = suppliers.value.findIndex(s => s.id === supplier.value.id);
-      if (index > -1) {
-        suppliers.value[index] = { ...suppliers.value[index], ...supplier.value, updated_at: new Date().toISOString() };
-      }
-    } else {
-      supplier.value.id = Math.max(0, ...suppliers.value.map(s => s.id)) + 1;
-      supplier.value.product_count = 0;
-      supplier.value.created_at = new Date().toISOString();
-      supplier.value.updated_at = new Date().toISOString();
-      suppliers.value.push(supplier.value);
+    try {
+      await supplierStore.saveSupplier(supplier.value);
+      supplierDialog.value = false;
+      supplier.value = {};
+      toast.add({ severity: 'success', summary: 'Success', detail: 'Supplier saved successfully', life: 3000 });
+    } catch (error) {
+      toast.add({ severity: 'error', summary: 'Error', detail: error.message || 'Failed to save supplier', life: 3000 });
     }
-    supplierDialog.value = false;
-    supplier.value = {};
   }
 };
 
@@ -112,14 +62,15 @@ const confirmDeleteSupplier = (supp) => {
         message: 'Are you sure you want to delete this supplier?',
         header: 'Confirmation',
         icon: 'pi pi-exclamation-triangle',
-        accept: () => {
-            deleteSupplier(supp);
+        accept: async () => {
+            try {
+                await supplierStore.deleteSupplier(supp.id);
+                toast.add({ severity: 'success', summary: 'Success', detail: 'Supplier deleted successfully', life: 3000 });
+            } catch (error) {
+                toast.add({ severity: 'error', summary: 'Error', detail: error.message || 'Failed to delete supplier', life: 3000 });
+            }
         }
     });
-};
-
-const deleteSupplier = (supp) => {
-    suppliers.value = suppliers.value.filter(s => s.id !== supp.id);
 };
 
 const deleteSelectedSuppliers = () => {
@@ -127,9 +78,14 @@ const deleteSelectedSuppliers = () => {
         message: `Are you sure you want to delete the ${selectedSuppliers.value.length} selected suppliers?`,
         header: 'Confirmation',
         icon: 'pi pi-exclamation-triangle',
-        accept: () => {
-            suppliers.value = suppliers.value.filter(s => !selectedSuppliers.value.includes(s));
-            selectedSuppliers.value = [];
+        accept: async () => {
+            try {
+                await Promise.all(selectedSuppliers.value.map(supp => supplierStore.deleteSupplier(supp.id)));
+                selectedSuppliers.value = [];
+                toast.add({ severity: 'success', summary: 'Success', detail: 'Selected suppliers deleted successfully', life: 3000 });
+            } catch (error) {
+                toast.add({ severity: 'error', summary: 'Error', detail: error.message || 'Failed to delete selected suppliers', life: 3000 });
+            }
         }
     });
 };
@@ -166,7 +122,7 @@ const getInitials = (name) => {
 
         <DataTable 
           v-model:selection="selectedSuppliers" 
-          :value="suppliers" 
+          :value="supplierStore.suppliers" 
           responsiveLayout="scroll"
           paginator :rows="10"
           :rowsPerPageOptions="[10, 20, 50]"

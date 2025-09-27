@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { onMounted } from 'vue';
 import Card from 'primevue/card';
 import Toolbar from 'primevue/toolbar';
 import Button from 'primevue/button';
@@ -13,45 +13,23 @@ import Tab from 'primevue/tab';
 import TabPanels from 'primevue/tabpanels';
 import TabPanel from 'primevue/tabpanel';
 import FloatLabel from 'primevue/floatlabel';
+import { useSettingsStore } from '../../store/settings';
+import { useToast } from 'primevue/usetoast';
 
-const settings = ref({
-    general: {},
-    receipt: {},
-    security: {},
-    integrations: {}
-});
-
-// Dummy data mimicking settings loaded from a backend
-const dummySettings = {
-    general: {
-        defaultTaxRate: 7.5,
-        currencySymbol: '',
-        currencyCode: 'USD',
-        enablePromotions: true,
-    },
-    receipt: {
-        headerText: 'Thank You for Shopping With Us!',
-        footerText: 'Please come again. Find us at www.example.com',
-        showStoreAddress: true,
-    },
-    security: {
-        sessionTimeout: 30, // in minutes
-        enable2FA: false,
-    },
-    integrations: {
-        paymentGatewayApiKey: 'pk_test_1234567890abcdefghij',
-    }
-};
+const settingsStore = useSettingsStore();
+const toast = useToast();
 
 onMounted(() => {
-  // Deep copy to avoid modifying the original dummy data directly
-  settings.value = JSON.parse(JSON.stringify(dummySettings));
+  settingsStore.fetchSettings();
 });
 
-const saveSettings = () => {
-    // In a real app, this would send the settings.value to the backend
-    console.log("Saving settings:", settings.value);
-    alert('Settings saved successfully! (Simulated)');
+const saveSettings = async () => {
+    try {
+        await settingsStore.saveSettings(settingsStore.settings);
+        toast.add({ severity: 'success', summary: 'Success', detail: 'Settings saved successfully', life: 3000 });
+    } catch (error) {
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to save settings', life: 3000 });
+    }
 };
 
 </script>
@@ -79,24 +57,24 @@ const saveSettings = () => {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div class="field flex flex-col">
                     <FloatLabel variant="on">
-                        <InputNumber v-model="settings.general.defaultTaxRate" inputId="taxRate" mode="decimal" :minFractionDigits="2" :maxFractionDigits="2" fluid />
+                        <InputNumber v-model="settingsStore.settings.general.defaultTaxRate" inputId="taxRate" mode="decimal" :minFractionDigits="2" :maxFractionDigits="2" fluid />
                         <label for="taxRate" class="font-medium mb-2">Default Tax Rate (%)</label>
                     </FloatLabel>
                   </div>
                   <div class="field flex flex-col">
                     <FloatLabel variant="on">
-                        <InputText id="currencySymbol" v-model="settings.general.currencySymbol" fluid />
+                        <InputText id="currencySymbol" v-model="settingsStore.settings.general.currencySymbol" fluid />
                         <label for="currencySymbol" class="font-medium mb-2">Currency Symbol</label>
                     </FloatLabel>
                   </div>
                   <div class="field flex flex-col">
                     <FloatLabel variant="on">
-                        <InputText id="currencyCode" v-model="settings.general.currencyCode" fluid />
+                        <InputText id="currencyCode" v-model="settingsStore.settings.general.currencyCode" fluid />
                         <label for="currencyCode" class="font-medium mb-2">Currency Code (e.g., USD, EUR)</label>
                     </FloatLabel>
                   </div>
                   <div class="field flex items-center mt-4">
-                    <ToggleSwitch v-model="settings.general.enablePromotions" inputId="enablePromotions" class="mr-2" />
+                    <ToggleSwitch v-model="settingsStore.settings.general.enablePromotions" inputId="enablePromotions" class="mr-2" />
                     <label for="enablePromotions" class="font-medium">Enable Promotions Module</label>
                   </div>
                 </div>
@@ -108,18 +86,18 @@ const saveSettings = () => {
                 <div class="grid grid-cols-1 gap-8">
                   <div class="field flex flex-col">
                     <FloatLabel variant="on">
-                        <InputText id="receiptHeader" v-model="settings.receipt.headerText" fluid />
+                        <InputText id="receiptHeader" v-model="settingsStore.settings.receipt.headerText" fluid />
                         <label for="receiptHeader" class="font-medium mb-2">Receipt Header Text</label>
                     </FloatLabel>
                   </div>
                   <div class="field flex flex-col">
                     <FloatLabel variant="on">
-                        <InputText id="receiptFooter" v-model="settings.receipt.footerText" fluid />
+                        <InputText id="receiptFooter" v-model="settingsStore.settings.receipt.footerText" fluid />
                         <label for="receiptFooter" class="font-medium mb-2">Receipt Footer Text</label>
                     </FloatLabel>
                   </div>
                   <div class="field flex items-center mt-4">
-                    <ToggleSwitch v-model="settings.receipt.showStoreAddress" inputId="showStoreAddress" class="mr-2" />
+                    <ToggleSwitch v-model="settingsStore.settings.receipt.showStoreAddress" inputId="showStoreAddress" class="mr-2" />
                     <label for="showStoreAddress" class="font-medium">Show Store Address on Receipt</label>
                   </div>
                 </div>
@@ -131,12 +109,12 @@ const saveSettings = () => {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div class="field flex flex-col">
                     <FloatLabel variant="on">
-                        <InputNumber v-model="settings.security.sessionTimeout" inputId="sessionTimeout" fluid />
+                        <InputNumber v-model="settingsStore.settings.security.sessionTimeout" inputId="sessionTimeout" fluid />
                         <label for="sessionTimeout" class="font-medium mb-2">Session Timeout (minutes)</label>
                     </FloatLabel>
                   </div>
                   <div class="field flex items-center mt-4">
-                    <ToggleSwitch v-model="settings.security.enable2FA" inputId="enable2FA" class="mr-2" />
+                    <ToggleSwitch v-model="settingsStore.settings.security.enable2FA" inputId="enable2FA" class="mr-2" />
                     <label for="enable2FA" class="font-medium">Enable Two-Factor Authentication (2FA) for all users</label>
                   </div>
                 </div>
@@ -148,7 +126,7 @@ const saveSettings = () => {
                 <div class="grid grid-cols-1 gap-8">
                   <div class="field flex flex-col">
                     <FloatLabel variant="on">
-                        <Password id="paymentApiKey" v-model="settings.integrations.paymentGatewayApiKey" :feedback="false" toggleMask fluid />
+                        <Password id="paymentApiKey" v-model="settingsStore.settings.integrations.paymentGatewayApiKey" :feedback="false" toggleMask fluid />
                         <label for="paymentApiKey" class="font-medium mb-2">Payment Gateway API Key</label>
                     </FloatLabel>
                     <small class="text-gray-500 mt-1">Enter the API key for your payment processor (e.g., Stripe, PayPal).</small>

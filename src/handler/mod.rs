@@ -12,3 +12,4 @@ pub mod stores_handler;
 pub mod suppliers_handler;
 pub mod reports_handler;
 pub mod purchase_orders_handler;
+pub mod bills_handler; // New module

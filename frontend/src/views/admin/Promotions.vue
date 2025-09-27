@@ -1,6 +1,9 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useConfirm } from "primevue/useconfirm";
+import { useToast } from "primevue/usetoast";
+import ConfirmDialog from 'primevue/confirmdialog';
+import Select from 'primevue/select';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Card from 'primevue/card';
@@ -10,51 +13,24 @@ import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
 import InputNumber from 'primevue/inputnumber';
-import Calendar from 'primevue/calendar';
+import DatePicker from 'primevue/datepicker';
 import ToggleSwitch from 'primevue/toggleswitch';
-import Dropdown from 'primevue/dropdown';
+
 import FloatLabel from 'primevue/floatlabel';
+import { usePromotionStore } from '../../store/promotion'; // Added
 
 const confirm = useConfirm();
-const promotions = ref([]);
+const toast = useToast();
+const promotionStore = usePromotionStore(); // Added
+
 const selectedPromotions = ref([]);
 const promotionDialog = ref(false);
 const submitted = ref(false);
 const promotion = ref({});
 const promotionTypes = ref(['Percentage', 'FixedAmount']);
 
-// Dummy data mimicking backend response
-const dummyData = [
-    {
-        id: 1,
-        name: '10% Off Laptops',
-        description: 'Get 10% off on all laptop models.',
-        promotion_type: 'Percentage',
-        value: '10.00',
-        start_date: '2025-10-01T00:00:00Z',
-        end_date: '2025-10-31T23:59:59Z',
-        is_active: true,
-        product_id: 1, // Assuming this links to a product
-        created_at: '2025-09-15T10:00:00Z',
-        updated_at: '2025-09-15T10:00:00Z',
-    },
-    {
-        id: 2,
-        name: '$5 Off Keyboards',
-        description: 'Get a $5 discount on any keyboard.',
-        promotion_type: 'FixedAmount',
-        value: '5.00',
-        start_date: '2025-11-01T00:00:00Z',
-        end_date: '2025-11-15T23:59:59Z',
-        is_active: false,
-        product_id: 3,
-        created_at: '2025-09-20T11:30:00Z',
-        updated_at: '2025-09-22T12:00:00Z',
-    },
-];
-
 onMounted(() => {
-  promotions.value = dummyData.map(p => ({...p, start_date: new Date(p.start_date), end_date: new Date(p.end_date)}));
+  promotionStore.fetchPromotions();
 });
 
 const openNew = () => {
@@ -68,22 +44,17 @@ const hideDialog = () => {
   submitted.value = false;
 };
 
-const savePromotion = () => {
+const savePromotion = async () => {
   submitted.value = true;
   if (promotion.value.name && promotion.value.promotion_type && promotion.value.value && promotion.value.start_date && promotion.value.end_date) {
-    if (promotion.value.id) {
-      const index = promotions.value.findIndex(p => p.id === promotion.value.id);
-      if (index > -1) {
-        promotions.value[index] = { ...promotions.value[index], ...promotion.value };
-      }
-    } else {
-      promotion.value.id = Math.max(...promotions.value.map(p => p.id)) + 1;
-      promotion.value.created_at = new Date();
-      promotion.value.updated_at = new Date();
-      promotions.value.push(promotion.value);
+    try {
+      await promotionStore.savePromotion(promotion.value);
+      promotionDialog.value = false;
+      promotion.value = {};
+      toast.add({ severity: 'success', summary: 'Success', detail: 'Promotion saved successfully', life: 3000 });
+    } catch (error) {
+      toast.add({ severity: 'error', summary: 'Error', detail: error.message || 'Failed to save promotion', life: 3000 });
     }
-    promotionDialog.value = false;
-    promotion.value = {};
   }
 };
 
@@ -97,14 +68,15 @@ const confirmDeletePromotion = (promo) => {
         message: 'Are you sure you want to delete this promotion?',
         header: 'Confirmation',
         icon: 'pi pi-exclamation-triangle',
-        accept: () => {
-            deletePromotion(promo);
+        accept: async () => {
+            try {
+                await promotionStore.deletePromotion(promo.id);
+                toast.add({ severity: 'success', summary: 'Success', detail: 'Promotion deleted successfully', life: 3000 });
+            } catch (error) {
+                toast.add({ severity: 'error', summary: 'Error', detail: error.message || 'Failed to delete promotion', life: 3000 });
+            }
         }
     });
-};
-
-const deletePromotion = (promo) => {
-    promotions.value = promotions.value.filter(p => p.id !== promo.id);
 };
 
 const deleteSelectedPromotions = () => {
@@ -112,9 +84,14 @@ const deleteSelectedPromotions = () => {
         message: 'Are you sure you want to delete the selected promotions?',
         header: 'Confirmation',
         icon: 'pi pi-exclamation-triangle',
-        accept: () => {
-            promotions.value = promotions.value.filter(p => !selectedPromotions.value.includes(p));
-            selectedPromotions.value = [];
+        accept: async () => {
+            try {
+                await Promise.all(selectedPromotions.value.map(promo => promotionStore.deletePromotion(promo.id)));
+                selectedPromotions.value = [];
+                toast.add({ severity: 'success', summary: 'Success', detail: 'Selected promotions deleted successfully', life: 3000 });
+            } catch (error) {
+                toast.add({ severity: 'error', summary: 'Error', detail: error.message || 'Failed to delete selected promotions', life: 3000 });
+            }
         }
     });
 };
@@ -131,6 +108,8 @@ const formatDate = (value) => {
 
 <template>
   <div>
+    
+    <ConfirmDialog />
     <Card>
       <template #title>
         <div class="flex justify-between items-center">
@@ -145,7 +124,30 @@ const formatDate = (value) => {
           </template>
         </Toolbar>
 
-        <DataTable v-model:selection="selectedPromotions" :value="promotions" responsiveLayout="scroll">
+        <div v-if="promotionStore.isLoading" class="text-center py-8">
+          <i class="pi pi-spin pi-spinner text-4xl text-blue-500"></i>
+          <p class="text-lg mt-2">Loading Promotions...</p>
+        </div>
+        <div v-else-if="promotionStore.error" class="text-center py-8 text-red-500">
+          <p>Error: {{ promotionStore.error.message }}</p>
+          <Button label="Retry" @click="promotionStore.fetchPromotions()" class="mt-4" />
+        </div>
+        <DataTable 
+          v-else
+          v-model:selection="selectedPromotions" 
+          :value="promotionStore.promotions" 
+          responsiveLayout="scroll"
+          paginator :rows="10"
+          :rowsPerPageOptions="[10, 20, 50]"
+        >
+          <template #empty>
+            <div class="text-center py-8">
+              <i class="pi pi-tag text-4xl text-gray-400 mb-2"></i>
+              <h3 class="text-xl font-semibold text-gray-600">No Promotions Found</h3>
+              <p class="text-gray-500">Click the "New" button to add a promotion.</p>
+            </div>
+          </template>
+
           <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
           <Column field="name" header="Name" :sortable="true"></Column>
           <Column field="promotion_type" header="Type" :sortable="true"></Column>
@@ -193,25 +195,25 @@ const formatDate = (value) => {
         </div>
         <div class="field col-12 p-2">
             <FloatLabel variant="on">
-                <Select id="promotion_type" v-model="promotion.promotion_type" :options="promotionTypes" placeholder="Select a Type" required="true" :class="{'p-invalid': submitted && !promotion.promotion_type}" fluid />
+                <Select id="promotion_type" v-model="promotion.promotion_type" :options="promotionTypes" :required="true" :class="{'p-invalid': submitted && !promotion.promotion_type}" fluid />
                 <label for="promotion_type">Promotion Type</label>
             </FloatLabel>
         </div>
         <div class="field col-12 p-2">
             <FloatLabel variant="on">
-                <InputNumber id="value" v-model="promotion.value" mode="decimal" :minFractionDigits="2" :maxFractionDigits="2" required="true" :class="{'p-invalid': submitted && !promotion.value}" fluid />
+                <InputNumber id="value" v-model="promotion.value" mode="decimal" :minFractionDigits="2" :maxFractionDigits="2" :class="{'p-invalid': submitted && !promotion.value}" fluid />
                 <label for="value">Value</label>
             </FloatLabel>
         </div>
         <div class="field col-12 p-2">
             <FloatLabel variant="on">
-                <Calendar id="start_date" v-model="promotion.start_date" required="true" :class="{'p-invalid': submitted && !promotion.start_date}" fluid></Calendar>
+                <DatePicker id="start_date" v-model="promotion.start_date" :required="true" :class="{'p-invalid': submitted && !promotion.start_date}" fluid></DatePicker>
                 <label for="start_date">Start Date</label>
             </FloatLabel>
         </div>
         <div class="field col-12 p-2">
             <FloatLabel variant="on">
-                <Calendar id="end_date" v-model="promotion.end_date" required="true" :class="{'p-invalid': submitted && !promotion.end_date}" fluid></Calendar>
+                <DatePicker id="end_date" v-model="promotion.end_date" required :class="{'p-invalid': submitted && !promotion.end_date}" fluid></DatePicker>
                 <label for="end_date">End Date</label>
             </FloatLabel>
         </div>

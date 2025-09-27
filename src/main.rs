@@ -60,7 +60,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::scope("/api/auth").route("/login", web::post().to(login)))
             .service(
                 web::scope("/api")
-                    .wrap(RoleMiddlewareFactory { allowed_roles: vec![] }) // Membutuhkan autentikasi tetapi tidak membatasi peran
+                    .wrap(RoleMiddlewareFactory { allowed_roles: vec![] })
                     .configure(routes::configure_routes)
             )
             

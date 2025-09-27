@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useConfirm } from "primevue/useconfirm";
+import { useToast } from "primevue/usetoast";
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Card from 'primevue/card';
@@ -10,42 +11,25 @@ import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
 import FloatLabel from 'primevue/floatlabel';
+import { useSupplierStore } from '../../store/supplier'; // Import store
 
+// Initialize stores and services
 const confirm = useConfirm();
-const suppliers = ref([]);
+const toast = useToast();
+const supplierStore = useSupplierStore();
+
+// Component state
 const selectedSuppliers = ref([]);
 const supplierDialog = ref(false);
 const submitted = ref(false);
 const supplier = ref({});
 
-// Dummy data mimicking backend response
-const dummyData = [
-    {
-        id: 1,
-        name: 'Tech Supplies Inc.',
-        contact_person: 'Alex Green',
-        email: 'alex@techsupplies.com',
-        phone: '111-222-3333',
-        address: '123 Tech Road, Silicon Valley, CA',
-        created_at: '2025-01-15T09:30:00Z',
-        updated_at: '2025-08-01T14:00:00Z',
-    },
-    {
-        id: 2,
-        name: 'Office Gear Co.',
-        contact_person: 'Sarah Brown',
-        email: 'sarah@officegear.com',
-        phone: '444-555-6666',
-        address: '456 Office Park, Business City, NY',
-        created_at: '2024-11-20T11:00:00Z',
-        updated_at: '2025-07-25T10:15:00Z',
-    },
-];
-
+// Fetch data on mount
 onMounted(() => {
-  suppliers.value = dummyData;
+  supplierStore.fetchSuppliers();
 });
 
+// CRUD Operations
 const openNew = () => {
   supplier.value = {};
   submitted.value = false;
@@ -57,22 +41,20 @@ const hideDialog = () => {
   submitted.value = false;
 };
 
-const saveSupplier = () => {
+const saveSupplier = async () => {
   submitted.value = true;
-  if (supplier.value.name) {
-    if (supplier.value.id) {
-      const index = suppliers.value.findIndex(s => s.id === supplier.value.id);
-      if (index > -1) {
-        suppliers.value[index] = { ...suppliers.value[index], ...supplier.value };
-      }
-    } else {
-      supplier.value.id = Math.max(...suppliers.value.map(s => s.id)) + 1;
-      supplier.value.created_at = new Date().toISOString();
-      supplier.value.updated_at = new Date().toISOString();
-      suppliers.value.push(supplier.value);
-    }
+  if (!supplier.value.name) {
+    return; // Basic validation
+  }
+
+  try {
+    await supplierStore.saveSupplier(supplier.value);
+    const isUpdate = !!supplier.value.id;
+    toast.add({ severity: 'success', summary: 'Success', detail: `Supplier ${isUpdate ? 'updated' : 'created'} successfully.`, life: 3000 });
     supplierDialog.value = false;
     supplier.value = {};
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to save supplier.', life: 3000 });
   }
 };
 
@@ -86,25 +68,31 @@ const confirmDeleteSupplier = (supp) => {
         message: 'Are you sure you want to delete this supplier?',
         header: 'Confirmation',
         icon: 'pi pi-exclamation-triangle',
-        accept: () => {
-            deleteSupplier(supp);
-        }
+        accept: async () => {
+            try {
+                await supplierStore.deleteSupplier(supp.id);
+                toast.add({ severity: 'success', summary: 'Confirmed', detail: 'Supplier deleted', life: 3000 });
+            } catch (err) {
+                toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete supplier.', life: 3000 });
+            }
+        },
     });
-};
-
-const deleteSupplier = (supp) => {
-    suppliers.value = suppliers.value.filter(s => s.id !== supp.id);
 };
 
 const deleteSelectedSuppliers = () => {
     confirm.require({
-        message: 'Are you sure you want to delete the selected suppliers?',
+        message: `Are you sure you want to delete the ${selectedSuppliers.value.length} selected suppliers?`,
         header: 'Confirmation',
         icon: 'pi pi-exclamation-triangle',
-        accept: () => {
-            suppliers.value = suppliers.value.filter(s => !selectedSuppliers.value.includes(s));
-            selectedSuppliers.value = [];
-        }
+        accept: async () => {
+            try {
+                await Promise.all(selectedSuppliers.value.map(s => supplierStore.deleteSupplier(s.id)));
+                toast.add({ severity: 'success', summary: 'Confirmed', detail: 'Selected suppliers deleted', life: 3000 });
+                selectedSuppliers.value = [];
+            } catch (err) {
+                toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete selected suppliers.', life: 3000 });
+            }
+        },
     });
 };
 
@@ -126,7 +114,7 @@ const deleteSelectedSuppliers = () => {
           </template>
         </Toolbar>
 
-        <DataTable v-model:selection="selectedSuppliers" :value="suppliers" responsiveLayout="scroll">
+        <DataTable v-model:selection="selectedSuppliers" :value="supplierStore.suppliers" responsiveLayout="scroll">
           <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
           <Column field="id" header="ID" :sortable="true"></Column>
           <Column field="name" header="Name" :sortable="true"></Column>

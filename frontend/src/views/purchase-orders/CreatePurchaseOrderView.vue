@@ -71,7 +71,7 @@ const goBack = () => {
 
         <div class="field">
           <FloatLabel>
-            <Dropdown id="store" v-model="po.store_id" :options="storeStore.stores" optionLabel="name" optionValue="id" placeholder="Select a Store" :class="{'p-invalid': submitted && !po.store_id}"></Dropdown>
+            <Select id="store" v-model="po.store_id" :options="storeStore.stores" optionLabel="name" optionValue="id" placeholder="Select a Store" :class="{'p-invalid': submitted && !po.store_id}"></Select>
             <label for="store">Store</label>
           </FloatLabel>
         </div>

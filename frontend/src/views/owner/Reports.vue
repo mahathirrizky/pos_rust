@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue';
 import Card from 'primevue/card';
 import Button from 'primevue/button';
 import Chart from 'primevue/chart';
@@ -11,17 +11,41 @@ import { useStoreStore } from '../../store/store';
 const ownerReportStore = useOwnerReportStore();
 const storeStore = useStoreStore();
 
-const dateRange = ref();
-const selectedStore = ref(null);
-
-onMounted(() => {
-  storeStore.fetchStores();
-  // Set default date range to last 7 days using native JS
+// Create a default date range to prevent double-fetching on mount
+const createDefaultDateRange = () => {
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(endDate.getDate() - 7);
-  dateRange.value = [startDate, endDate];
-  // Initial fetch is triggered by the watch handler
+  return [startDate, endDate];
+};
+
+const dateRange = ref(createDefaultDateRange());
+const selectedStore = ref(null);
+const salesChart = ref();
+const salesByStoreChart = ref();
+const isMounted = ref(false); // Control chart rendering
+
+onMounted(() => {
+  storeStore.fetchStores();
+  // Initial fetch
+  fetchReports();
+  isMounted.value = true; // Allow charts to render
+});
+
+onBeforeUnmount(() => {
+  isMounted.value = false; // Immediately remove charts from DOM
+  if (salesChart.value) {
+    const chartInstance = salesChart.value.getChart();
+    if (chartInstance) {
+      chartInstance.destroy();
+    }
+  }
+  if (salesByStoreChart.value) {
+    const chartInstance = salesByStoreChart.value.getChart();
+    if (chartInstance) {
+      chartInstance.destroy();
+    }
+  }
 });
 
 const fetchReports = () => {
@@ -37,7 +61,7 @@ const fetchReports = () => {
 };
 
 // Watch for filter changes
-watch([dateRange, selectedStore], fetchReports, { deep: true, immediate: true }); // Use immediate: true to trigger on mount
+watch([dateRange, selectedStore], fetchReports, { deep: true });
 
 const formatCurrency = (value) => {
   if (typeof value !== 'number') return '';
@@ -196,17 +220,17 @@ const barChartOptions = ref({
           </div>
 
           <!-- Charts -->
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div v-if="isMounted" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
               <template #title>Sales Over Time</template>
               <template #content>
-                <Chart type="line" :data="salesChartData" :options="chartOptions" style="height: 300px" />
+                <Chart ref="salesChart" type="line" :data="salesChartData" :options="chartOptions" style="height: 300px" />
               </template>
             </Card>
             <Card>
               <template #title>Sales by Store</template>
               <template #content>
-                <Chart type="bar" :data="salesByStoreChartData" :options="barChartOptions" style="height: 300px" />
+                <Chart ref="salesByStoreChart" type="bar" :data="salesByStoreChartData" :options="barChartOptions" style="height: 300px" />
               </template>
             </Card>
           </div>
@@ -222,3 +246,4 @@ const barChartOptions = ref({
     </Card>
   </div>
 </template>
+

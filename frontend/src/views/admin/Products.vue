@@ -11,9 +11,10 @@ import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
 import InputNumber from 'primevue/inputnumber';
-import Dropdown from 'primevue/dropdown';
+import Select from 'primevue/select';
 import FloatLabel from 'primevue/floatlabel';
 import { useProductStore } from '../../store/product';
+
 
 const confirm = useConfirm();
 const toast = useToast();
@@ -145,7 +146,7 @@ const formatCurrency = (value) => {
       <div class="p-grid p-fluid grid-nogutter">
         <div class="field col-12 p-2">
             <FloatLabel variant="on">
-                <InputText id="name" v-model.trim="product.name" required="true" autofocus :class="{'p-invalid': submitted && !product.name}" variant="filled" fluid />
+                <InputText id="name" v-model.trim="product.name" autofocus :class="{'p-invalid': submitted && !product.name}" variant="filled" fluid />
                 <label for="name">Name</label>
             </FloatLabel>
             <small class="p-error" v-if="submitted && !product.name">Name is required.</small>
@@ -165,20 +166,20 @@ const formatCurrency = (value) => {
         </div>
         <div class="field col-12 p-2">
             <FloatLabel variant="on">
-                <InputText id="sku" v-model.trim="product.sku" required="true" :class="{'p-invalid': submitted && !product.sku}" variant="filled" fluid />
+                <InputText id="sku" v-model.trim="product.sku" :required="true" :class="{'p-invalid': submitted && !product.sku}" variant="filled" fluid />
                 <label for="sku">SKU</label>
             </FloatLabel>
             <small class="p-error" v-if="submitted && !product.sku">SKU is required.</small>
         </div>
         <div class="field col-12 p-2">
             <FloatLabel variant="on">
-                <Dropdown id="category_id" v-model="product.category_id" :options="productStore.categories" optionLabel="label" optionValue="value" placeholder="Select a Category" fluid variant="filled"></Dropdown>
+                <Select id="category_id" v-model="product.category_id" :options="productStore.categories" optionLabel="label" optionValue="value"  fluid variant="filled"></Select>
                 <label for="category_id">Category</label>
             </FloatLabel>
         </div>
         <div class="field col-12 p-2">
             <FloatLabel variant="on">
-                <Dropdown id="supplier_id" v-model="product.supplier_id" :options="productStore.suppliers" optionLabel="label" optionValue="value" placeholder="Select a Supplier" fluid variant="filled"></Dropdown>
+                <Select id="supplier_id" v-model="product.supplier_id" :options="productStore.suppliers" optionLabel="label" optionValue="value"  fluid variant="filled"></Select>
                 <label for="supplier_id">Supplier</label>
             </FloatLabel>
         </div>

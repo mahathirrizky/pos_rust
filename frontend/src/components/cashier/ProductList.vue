@@ -7,25 +7,35 @@ import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
 import Card from 'primevue/card';
 import { useProductStore } from '../../store/product';
+import { useInventoryStore } from '../../store/inventory'; // Still need this to trigger fetch
 
 const productStore = useProductStore();
+const inventoryStore = useInventoryStore(); // Keep this to call fetchInventory
+
 const searchQuery = ref('');
 const searchInput = ref(null);
 
 const emit = defineEmits(['add-to-cart']);
 
+// The search filter now uses the new getter from the product store
 const filteredProducts = computed(() => {
+  // The getter is already reactive and contains the merged data
+  const source = productStore.productsWithRealtimeStock;
   if (!searchQuery.value) {
-    return productStore.products;
+    return source;
   }
-  return productStore.products.filter(product =>
+  return source.filter(product =>
     product.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
     (product.sku && product.sku.toLowerCase().includes(searchQuery.value.toLowerCase()))
   );
 });
 
 onMounted(() => {
+  // Fetch from both stores to populate them initially.
+  // The inventory store will then keep itself updated via WebSocket.
   productStore.fetchProducts();
+  inventoryStore.fetchInventory();
+
   if (searchInput.value && searchInput.value.$el) {
     searchInput.value.$el.focus();
   }
@@ -34,7 +44,6 @@ onMounted(() => {
 const handleAddToCart = (product) => {
   emit('add-to-cart', product);
 };
-
 </script>
 
 <template>
@@ -47,7 +56,7 @@ const handleAddToCart = (product) => {
     </div>
 
     <div class="flex-grow overflow-auto">
-      <div v-if="productStore.products.length === 0" class="flex justify-center items-center h-full">
+      <div v-if="!filteredProducts.length && !searchQuery" class="flex justify-center items-center h-full">
         <ProgressSpinner />
       </div>
       <div v-else-if="filteredProducts.length > 0">
@@ -66,14 +75,17 @@ const handleAddToCart = (product) => {
                   <p class="text-sm text-surface-500 mt-1">SKU: {{ product.sku }}</p>
                   <div class="flex flex-col mt-auto">
                     <span class="text-2xl font-semibold text-primary">Rp{{ product.price }}</span>
-                    <span v-if="product.stock !== undefined" :class="{'text-red-500': product.stock < 10, 'text-green-500': product.stock >= 10}" class="text-sm mt-1">
+                    <span v-if="product.stock > 0" :class="{'text-red-500': product.stock < 10, 'text-green-500': product.stock >= 10}" class="text-sm mt-1">
                       Stock: {{ product.stock }}
+                    </span>
+                    <span v-else class="text-red-600 font-bold text-sm mt-1">
+                      Out of Stock
                     </span>
                   </div>
                 </div>
               </template>
               <template #footer>
-                <Button label="Add" icon="pi pi-plus" class="mt-4 w-full" @click="handleAddToCart(product)" />
+                <Button label="Add" icon="pi pi-plus" class="mt-4 w-full" @click="handleAddToCart(product)" :disabled="product.stock <= 0" />
               </template>
             </Card>
           </div>

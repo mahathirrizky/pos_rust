@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useConfirm } from "primevue/useconfirm";
+import { useToast } from "primevue/usetoast";
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Card from 'primevue/card';
@@ -10,52 +11,21 @@ import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
 import Tag from 'primevue/tag';
+import ConfirmDialog from 'primevue/confirmdialog';
+import FloatLabel from 'primevue/floatlabel';
+import { useCategoryStore } from '../../store/category';
 
 const confirm = useConfirm();
-const categories = ref([]);
+const toast = useToast();
+const categoryStore = useCategoryStore();
+
 const selectedCategories = ref([]);
 const categoryDialog = ref(false);
 const submitted = ref(false);
 const category = ref({});
 
-// Dummy data mimicking backend response with more variety
-const dummyData = [
-    {
-        id: 1,
-        name: 'Electronics',
-        description: 'Gadgets, computers, and related accessories.',
-        product_count: 12,
-        created_at: '2025-01-15T10:30:00Z',
-        updated_at: '2025-09-12T14:00:00Z',
-    },
-    {
-        id: 2,
-        name: 'Home & Kitchen',
-        description: 'Items for home, kitchen, and garden.',
-        product_count: 45,
-        created_at: '2025-02-20T11:00:00Z',
-        updated_at: '2025-08-30T18:20:00Z',
-    },
-    {
-        id: 3,
-        name: 'Apparel',
-        description: 'Clothing, shoes, and accessories for all ages.',
-        product_count: 78,
-        created_at: '2025-03-10T09:00:00Z',
-        updated_at: '2025-09-21T10:05:00Z',
-    },
-    {
-        id: 4,
-        name: 'Books',
-        description: 'Physical books, e-books, and audiobooks.',
-        product_count: 150,
-        created_at: '2025-04-05T14:15:00Z',
-        updated_at: '2025-09-01T11:00:00Z',
-    },
-];
-
 onMounted(() => {
-  categories.value = dummyData;
+  categoryStore.fetchCategories();
 });
 
 const openNew = () => {
@@ -69,23 +39,17 @@ const hideDialog = () => {
   submitted.value = false;
 };
 
-const saveCategory = () => {
+const saveCategory = async () => {
   submitted.value = true;
   if (category.value.name) {
-    if (category.value.id) {
-      const index = categories.value.findIndex(c => c.id === category.value.id);
-      if (index > -1) {
-        categories.value[index] = { ...categories.value[index], ...category.value, updated_at: new Date().toISOString() };
-      }
-    } else {
-      category.value.id = Math.max(0, ...categories.value.map(c => c.id)) + 1;
-      category.value.product_count = 0; // New categories have no products
-      category.value.created_at = new Date().toISOString();
-      category.value.updated_at = new Date().toISOString();
-      categories.value.push(category.value);
+    try {
+      await categoryStore.saveCategory(category.value);
+      categoryDialog.value = false;
+      category.value = {};
+      toast.add({ severity: 'success', summary: 'Success', detail: 'Category saved successfully', life: 3000 });
+    } catch (error) {
+      toast.add({ severity: 'error', summary: 'Error', detail: error.message || 'Failed to save category', life: 3000 });
     }
-    categoryDialog.value = false;
-    category.value = {};
   }
 };
 
@@ -99,14 +63,15 @@ const confirmDeleteCategory = (cat) => {
         message: 'Are you sure you want to delete this category?',
         header: 'Confirmation',
         icon: 'pi pi-exclamation-triangle',
-        accept: () => {
-            deleteCategory(cat);
+        accept: async () => {
+            try {
+                await categoryStore.deleteCategory(cat.id);
+                toast.add({ severity: 'success', summary: 'Success', detail: 'Category deleted successfully', life: 3000 });
+            } catch (error) {
+                toast.add({ severity: 'error', summary: 'Error', detail: error.message || 'Failed to delete category', life: 3000 });
+            }
         }
     });
-};
-
-const deleteCategory = (cat) => {
-    categories.value = categories.value.filter(c => c.id !== cat.id);
 };
 
 const deleteSelectedCategories = () => {
@@ -114,9 +79,14 @@ const deleteSelectedCategories = () => {
         message: `Are you sure you want to delete the ${selectedCategories.value.length} selected categories?`,
         header: 'Confirmation',
         icon: 'pi pi-exclamation-triangle',
-        accept: () => {
-            categories.value = categories.value.filter(c => !selectedCategories.value.includes(c));
-            selectedCategories.value = [];
+        accept: async () => {
+            try {
+                await Promise.all(selectedCategories.value.map(cat => categoryStore.deleteCategory(cat.id)));
+                selectedCategories.value = [];
+                toast.add({ severity: 'success', summary: 'Success', detail: 'Selected categories deleted successfully', life: 3000 });
+            } catch (error) {
+                toast.add({ severity: 'error', summary: 'Error', detail: error.message || 'Failed to delete selected categories', life: 3000 });
+            }
         }
     });
 };
@@ -132,6 +102,8 @@ const formatDate = (value) => {
 
 <template>
   <div>
+    
+    <ConfirmDialog />
     <Card>
       <template #title>
         <div class="flex justify-between items-center">
@@ -146,9 +118,18 @@ const formatDate = (value) => {
           </template>
         </Toolbar>
 
+        <div v-if="categoryStore.isLoading" class="text-center py-8">
+          <i class="pi pi-spin pi-spinner text-4xl text-blue-500"></i>
+          <p class="text-lg mt-2">Loading Categories...</p>
+        </div>
+        <div v-else-if="categoryStore.error" class="text-center py-8 text-red-500">
+          <p>Error: {{ categoryStore.error.message }}</p>
+          <Button label="Retry" @click="categoryStore.fetchCategories()" class="mt-4" />
+        </div>
         <DataTable 
+          v-else
           v-model:selection="selectedCategories" 
-          :value="categories" 
+          :value="categoryStore.categories" 
           responsiveLayout="scroll"
           paginator :rows="10"
           :rowsPerPageOptions="[10, 20, 50]"

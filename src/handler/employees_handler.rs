@@ -2,7 +2,7 @@ use crate::auth::auth_service::Claims;
 use crate::repository::employees_repository::EmployeeRepository;
 use actix_web::{web, HttpResponse, Responder};
 use crate::helper::response::{ApiResponse, ApiError};
-use crate::entities::employees::{CreateEmployee, UpdateEmployee, EmployeeReportData};
+use crate::entities::employees::{CreateEmployee, UpdateEmployee, EmployeeReportData, EmployeeResponse};
 use sea_orm::DatabaseConnection;
 use crate::guard::employee_guard::EmployeeAccessGuard;
 use crate::auth::auth_service;
@@ -58,23 +58,25 @@ pub async fn create_admin(db: web::Data<DatabaseConnection>, new_employee: web::
     employee_data.password_hash = hashed_password;
 
     match EmployeeRepository::create(db.get_ref(), employee_data, "Admin".to_string()).await {
-        Ok(employee) => HttpResponse::Ok().json(ApiResponse::new(employee)),
+        Ok(employee) => {
+            let employee_response = EmployeeResponse::from(employee);
+            HttpResponse::Ok().json(ApiResponse::new(employee_response))
+        },
         Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to create admin".to_string())),
     }
 }
 
 pub async fn get_employee_by_id(guard: EmployeeAccessGuard) -> impl Responder {
-    HttpResponse::Ok().json(ApiResponse::new(guard.employee))
+    let employee_response = EmployeeResponse::from(guard.employee);
+    HttpResponse::Ok().json(ApiResponse::new(employee_response))
 }
 
 pub async fn get_my_profile(guard: EmployeeAccessGuard) -> impl Responder {
-    HttpResponse::Ok().json(ApiResponse::new(guard.employee))
+    let employee_response = EmployeeResponse::from(guard.employee);
+    HttpResponse::Ok().json(ApiResponse::new(employee_response))
 }
 
 pub async fn update_employee(guard: EmployeeAccessGuard, db: web::Data<DatabaseConnection>, update_data: web::Json<UpdateEmployee>) -> impl Responder {
-    // if !has_role(&claims, &["Admin"]) {
-    //     return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Only Admin can update employees.".to_string()));
-    // }
     let employee_id = guard.employee.id;
     let mut employee_data = update_data.into_inner();
 
@@ -93,16 +95,16 @@ pub async fn update_employee(guard: EmployeeAccessGuard, db: web::Data<DatabaseC
     }
 
     match EmployeeRepository::update(db.get_ref(), employee_id, employee_data).await {
-        Ok(Some(employee)) => HttpResponse::Ok().json(ApiResponse::new(employee)),
+        Ok(Some(employee)) => {
+            let employee_response = EmployeeResponse::from(employee);
+            HttpResponse::Ok().json(ApiResponse::new(employee_response))
+        },
         Ok(None) => HttpResponse::NotFound().json(ApiError::new("Employee not found".to_string())),
         Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to update employee".to_string())),
     }
 }
 
 pub async fn delete_employee(db: web::Data<DatabaseConnection>, id: web::Path<i32>) -> impl Responder {
-    // if !has_role(&claims, &["Admin"]) {
-    //     return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Only Admin can delete employees.".to_string()));
-    // }
     let employee_id = id.into_inner(); // Extract once
     match EmployeeRepository::delete(db.get_ref(), employee_id).await {
         Ok(rows_affected) if rows_affected > 0 => {

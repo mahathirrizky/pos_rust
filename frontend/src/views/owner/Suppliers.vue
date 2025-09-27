@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
-import Toast from 'primevue/toast';
+
 import ConfirmDialog from 'primevue/confirmdialog';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
@@ -102,7 +102,7 @@ const deleteSelectedSuppliers = () => {
 
 <template>
   <div>
-    <Toast />
+    
     <ConfirmDialog />
     <Card>
       <template #title>

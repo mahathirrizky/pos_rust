@@ -1,151 +1,248 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue';
 import Card from 'primevue/card';
-import Chart from 'primevue/chart';
-import DataTable from 'primevue/datatable';
-import Column from 'primevue/column';
-import Toolbar from 'primevue/toolbar';
-import Calendar from 'primevue/calendar';
-import Dropdown from 'primevue/dropdown';
 import Button from 'primevue/button';
+import Chart from 'primevue/chart';
+import DatePicker from 'primevue/datepicker';
+import Select from 'primevue/select';
+import { useReportStore } from '../../store/report';
+import { useStoreStore } from '../../store/store';
 
-const dateRange = ref();
-const selectedStore = ref();
-const stores = ref(['All Stores', 'Main Street Store', 'Downtown Branch', 'Uptown Plaza']);
+const reportStore = useReportStore();
+const storeStore = useStoreStore();
 
-const summaryData = ref({});
-const topProducts = ref([]);
-const topEmployees = ref([]);
-const salesChartData = ref({});
-const chartOptions = ref({});
-
-// Dummy data mimicking a backend report response
-const dummyReportData = {
-    summary: {
-        total_revenue: 152340.75,
-        total_orders: 890,
-        average_order_value: 171.17
-    },
-    top_products: [
-        { product_name: 'Laptop', quantity_sold: 40, total_revenue: 48020.00 },
-        { product_name: 'Keyboard', quantity_sold: 150, total_revenue: 22612.50 },
-        { product_name: 'Gaming PC', quantity_sold: 8, total_revenue: 19200.00 },
-        { product_name: 'Mouse', quantity_sold: 200, total_revenue: 15000.00 },
-    ],
-    top_employees: [
-        { employee_name: 'Jane Smith', total_sales_handled: 55430.20 },
-        { employee_name: 'John Doe', total_sales_handled: 48760.50 },
-        { employee_name: 'Peter Jones', total_sales_handled: 35100.05 },
-    ],
-    sales_over_time: {
-        labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September'],
-        datasets: [
-            {
-                label: 'Sales',
-                data: [12000, 19000, 15000, 21000, 18000, 23000, 25000, 22000, 28000],
-                borderColor: '#4F46E5',
-                tension: 0.4
-            }
-        ]
-    }
+// Create a default date range to prevent double-fetching on mount
+const createDefaultDateRange = () => {
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(endDate.getDate() - 7);
+  return [startDate, endDate];
 };
+
+const dateRange = ref(createDefaultDateRange());
+const selectedStore = ref(null);
+const salesChart = ref();
+const salesByStoreChart = ref();
+const isMounted = ref(false); // Control chart rendering
 
 onMounted(() => {
-  summaryData.value = dummyReportData.summary;
-  topProducts.value = dummyReportData.top_products;
-  topEmployees.value = dummyReportData.top_employees;
-  salesChartData.value = dummyReportData.sales_over_time;
-  chartOptions.value = getChartOptions();
+  storeStore.fetchStores();
+  // Initial fetch
+  fetchReports();
+  isMounted.value = true; // Allow charts to render
 });
 
+onBeforeUnmount(() => {
+  isMounted.value = false; // Immediately remove charts from DOM
+  if (salesChart.value) {
+    const chartInstance = salesChart.value.getChart();
+    if (chartInstance) {
+      chartInstance.destroy();
+    }
+  }
+  if (salesByStoreChart.value) {
+    const chartInstance = salesByStoreChart.value.getChart();
+    if (chartInstance) {
+      chartInstance.destroy();
+    }
+  }
+});
+
+const fetchReports = () => {
+  if (!dateRange.value || dateRange.value.length !== 2 || !dateRange.value[0] || !dateRange.value[1]) {
+    return;
+  }
+  const params = {
+    startDate: dateRange.value[0].toISOString().split('T')[0],
+    endDate: dateRange.value[1].toISOString().split('T')[0],
+    storeId: selectedStore.value,
+  };
+  reportStore.fetchAdminDashboardReports(params);
+};
+
+// Watch for filter changes
+watch([dateRange, selectedStore], fetchReports, { deep: true });
+
 const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+  if (typeof value !== 'number') return '';
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
 };
 
-const getChartOptions = () => {
-    const documentStyle = getComputedStyle(document.documentElement);
-    const textColor = documentStyle.getPropertyValue('--p-text-color');
-    const textColorSecondary = documentStyle.getPropertyValue('--p-text-muted-color');
-    const surfaceBorder = documentStyle.getPropertyValue('--p-content-border-color');
+const salesChartData = computed(() => {
+  const data = reportStore.summaryData?.sales_over_time;
+  if (!data) {
+    return {};
+  }
+  return {
+    labels: data.map(item => new Date(item[0] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })), // Ensure date is parsed correctly
+    datasets: [
+      {
+        label: 'Daily Sales',
+        data: data.map(item => item[1]),
+        fill: true,
+        borderColor: '#42A5F5',
+        tension: 0.4,
+        backgroundColor: 'rgba(66, 165, 245, 0.2)',
+      },
+    ],
+  };
+});
 
-    return {
-        maintainAspectRatio: false,
-        aspectRatio: 0.6,
-        plugins: { legend: { labels: { color: textColor } } },
-        scales: {
-            x: { ticks: { color: textColorSecondary }, grid: { color: surfaceBorder } },
-            y: { ticks: { color: textColorSecondary }, grid: { color: surfaceBorder } }
+const salesByStoreChartData = computed(() => {
+  const data = reportStore.summaryData?.sales_by_store;
+  if (!data || data.length === 0) {
+    return {};
+  }
+  return {
+    labels: data.map(item => item[0]), // Store names
+    datasets: [
+      {
+        label: 'Sales by Store',
+        data: data.map(item => item[1]), // Sales figures
+        backgroundColor: [
+          '#42A5F5',
+          '#66BB6A',
+          '#FFA726',
+          '#26A69A',
+          '#AB47BC',
+          '#EC407A',
+          '#78909C',
+        ],
+      },
+    ],
+  };
+});
+
+const chartOptions = ref({
+    maintainAspectRatio: false,
+    aspectRatio: 0.6,
+    plugins: {
+        legend: {
+            labels: {
+                color: '#495057'
+            }
         }
-    };
-};
+    },
+    scales: {
+        x: {
+            ticks: {
+                color: '#495057'
+            },
+            grid: {
+                color: '#ebedef'
+            }
+        },
+        y: {
+            ticks: {
+                color: '#495057'
+            },
+            grid: {
+                color: '#ebedef'
+            }
+        }
+    }
+});
 
-const applyFilters = () => {
-    // In a real app, this would fetch new data from the backend
-    console.log("Applying filters:", { dateRange: dateRange.value, store: selectedStore.value });
-    alert('Filtering would be applied here.');
-};
+const barChartOptions = ref({
+    plugins: {
+        legend: {
+            display: false // Hide legend for bar chart with single dataset
+        }
+    },
+    scales: {
+        y: {
+            beginAtZero: true,
+            ticks: {
+                color: '#495057'
+            },
+            grid: {
+                color: '#ebedef'
+            }
+        },
+        x: {
+            ticks: {
+                color: '#495057'
+            },
+            grid: {
+                color: '#ebedef'
+            }
+        }
+    }
+});
 
 </script>
 
 <template>
   <div>
-    <Toolbar class="mb-4">
-        <template #start>
-            <div class="flex items-center gap-2">
-                <Calendar v-model="dateRange" selectionMode="range" :manualInput="false" placeholder="Select Date Range" class="w-full md:w-20rem" />
-                <Dropdown v-model="selectedStore" :options="stores" placeholder="Select a Store" class="w-full md:w-14rem" />
-                <Button label="Apply" icon="pi pi-check" @click="applyFilters" />
-            </div>
-        </template>
-    </Toolbar>
+    <Card>
+      <template #title>
+        <span class="text-2xl font-semibold">Admin Reports</span>
+      </template>
+      <template #content>
+        <!-- Filters -->
+        <div class="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+          <div class="flex-auto">
+            <label for="dr" class="font-bold block mb-2"> Date Range </label>
+            <DatePicker v-model="dateRange" selectionMode="range" :manualInput="false" showIcon inputId="dr" class="w-full"/>
+          </div>
+          <div class="flex-auto">
+            <label for="store" class="font-bold block mb-2"> Store </label>
+            <Select v-model="selectedStore" :options="storeStore.stores" optionLabel="name" optionValue="id" placeholder="All Stores" showClear inputId="store" class="w-full"/>
+          </div>
+        </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-        <Card>
-            <template #title><div class="text-lg">Total Revenue</div></template>
-            <template #content><div class="text-3xl font-bold">{{ formatCurrency(summaryData.total_revenue) }}</div></template>
-        </Card>
-        <Card>
-            <template #title><div class="text-lg">Total Orders</div></template>
-            <template #content><div class="text-3xl font-bold">{{ summaryData.total_orders }}</div></template>
-        </Card>
-        <Card>
-            <template #title><div class="text-lg">Average Order Value</div></template>
-            <template #content><div class="text-3xl font-bold">{{ formatCurrency(summaryData.average_order_value) }}</div></template>
-        </Card>
-    </div>
+        <!-- Loading Spinner -->
+        <div v-if="reportStore.isLoading" class="text-center py-8">
+          <i class="pi pi-spin pi-spinner text-4xl text-blue-500"></i>
+          <p class="text-lg mt-2">Loading Reports...</p>
+        </div>
 
-    <Card class="mb-4">
-        <template #title><div class="text-xl font-semibold">Sales Over Time</div></template>
-        <template #content>
-            <Chart type="line" :data="salesChartData" :options="chartOptions" style="height: 300px" />
-        </template>
+        <!-- Report Content -->
+        <div v-else-if="reportStore.summaryData">
+          <!-- Key Metrics -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <Card>
+              <template #title>Total Revenue</template>
+              <template #content>
+                <div class="text-4xl font-bold text-green-500">
+                  {{ formatCurrency(reportStore.summaryData.total_revenue) }}
+                </div>
+              </template>
+            </Card>
+            <Card>
+              <template #title>Total Transactions</template>
+              <template #content>
+                <div class="text-4xl font-bold text-blue-500">
+                  {{ reportStore.summaryData.total_transactions }}
+                </div>
+              </template>
+            </Card>
+          </div>
+
+          <!-- Charts -->
+          <div v-if="isMounted" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <template #title>Sales Over Time</template>
+              <template #content>
+                <Chart ref="salesChart" type="line" :data="salesChartData" :options="chartOptions" style="height: 300px" />
+              </template>
+            </Card>
+            <Card>
+              <template #title>Sales by Store</template>
+              <template #content>
+                <Chart ref="salesByStoreChart" type="bar" :data="salesByStoreChartData" :options="barChartOptions" style="height: 300px" />
+              </template>
+            </Card>
+          </div>
+        </div>
+        
+        <!-- No Data Message -->
+        <div v-else class="text-center py-8 bg-gray-50 rounded-lg">
+            <i class="pi pi-info-circle text-4xl text-gray-400"></i>
+            <p class="text-lg mt-2 text-gray-600">No data available for the selected filters.</p>
+        </div>
+
+      </template>
     </Card>
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-            <template #title><div class="text-xl font-semibold">Top Selling Products</div></template>
-            <template #content>
-                <DataTable :value="topProducts" responsiveLayout="scroll">
-                    <Column field="product_name" header="Product"></Column>
-                    <Column field="quantity_sold" header="Quantity Sold"></Column>
-                    <Column field="total_revenue" header="Total Revenue">
-                        <template #body="slotProps">{{ formatCurrency(slotProps.data.total_revenue) }}</template>
-                    </Column>
-                </DataTable>
-            </template>
-        </Card>
-        <Card>
-            <template #title><div class="text-xl font-semibold">Top Performing Employees</div></template>
-            <template #content>
-                <DataTable :value="topEmployees" responsiveLayout="scroll">
-                    <Column field="employee_name" header="Employee"></Column>
-                    <Column field="total_sales_handled" header="Total Sales">
-                        <template #body="slotProps">{{ formatCurrency(slotProps.data.total_sales_handled) }}</template>
-                    </Column>
-                </DataTable>
-            </template>
-        </Card>
-    </div>
-
   </div>
 </template>

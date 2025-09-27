@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useConfirm } from "primevue/useconfirm";
+import { useToast } from "primevue/usetoast";
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Card from 'primevue/card';
@@ -10,64 +11,21 @@ import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
 import Avatar from 'primevue/avatar';
+import ConfirmDialog from 'primevue/confirmdialog';
+import FloatLabel from 'primevue/floatlabel';
+import { useCustomerStore } from '../../store/customer';
 
 const confirm = useConfirm();
-const customers = ref([]);
+const toast = useToast();
+const customerStore = useCustomerStore();
+
 const selectedCustomers = ref([]);
 const customerDialog = ref(false);
 const submitted = ref(false);
 const customer = ref({});
 
-// Dummy data mimicking backend response
-const dummyData = [
-    {
-        id: 1,
-        first_name: 'Alice',
-        last_name: 'Johnson',
-        email: 'alice.j@example.com',
-        phone: '555-100-2000',
-        address: '101 Pine St, Anytown, USA',
-        total_orders: 5,
-        created_at: '2024-03-01T09:00:00Z',
-        updated_at: '2025-09-22T09:00:00Z',
-    },
-    {
-        id: 2,
-        first_name: 'Bob',
-        last_name: 'Williams',
-        email: 'bob.w@example.com',
-        phone: '555-300-4000',
-        address: '202 Maple Ave, Cityville, USA',
-        total_orders: 12,
-        created_at: '2024-04-10T14:00:00Z',
-        updated_at: '2025-08-15T14:00:00Z',
-    },
-    {
-        id: 3,
-        first_name: 'Charlie',
-        last_name: 'Brown',
-        email: 'charlie.b@example.com',
-        phone: '555-500-6000',
-        address: '303 Oak Ln, Metropolis, USA',
-        total_orders: 2,
-        created_at: '2025-01-20T11:20:00Z',
-        updated_at: '2025-09-10T11:20:00Z',
-    },
-    {
-        id: 4,
-        first_name: 'Diana',
-        last_name: 'Prince',
-        email: 'diana.p@example.com',
-        phone: '555-700-8000',
-        address: '404 Justice Rd, Themyscira, USA',
-        total_orders: 25,
-        created_at: '2025-05-30T18:00:00Z',
-        updated_at: '2025-09-21T18:00:00Z',
-    },
-];
-
 onMounted(() => {
-  customers.value = dummyData;
+  customerStore.fetchCustomers();
 });
 
 const openNew = () => {
@@ -81,23 +39,17 @@ const hideDialog = () => {
   submitted.value = false;
 };
 
-const saveCustomer = () => {
+const saveCustomer = async () => {
   submitted.value = true;
   if (customer.value.first_name && customer.value.last_name && customer.value.email) {
-    if (customer.value.id) {
-      const index = customers.value.findIndex(c => c.id === customer.value.id);
-      if (index > -1) {
-        customers.value[index] = { ...customers.value[index], ...customer.value, updated_at: new Date().toISOString() };
-      }
-    } else {
-      customer.value.id = Math.max(0, ...customers.value.map(c => c.id)) + 1;
-      customer.value.total_orders = 0;
-      customer.value.created_at = new Date().toISOString();
-      customer.value.updated_at = new Date().toISOString();
-      customers.value.push(customer.value);
+    try {
+      await customerStore.saveCustomer(customer.value);
+      customerDialog.value = false;
+      customer.value = {};
+      toast.add({ severity: 'success', summary: 'Success', detail: 'Customer saved successfully', life: 3000 });
+    } catch (error) {
+      toast.add({ severity: 'error', summary: 'Error', detail: error.message || 'Failed to save customer', life: 3000 });
     }
-    customerDialog.value = false;
-    customer.value = {};
   }
 };
 
@@ -111,14 +63,15 @@ const confirmDeleteCustomer = (cust) => {
         message: 'Are you sure you want to delete this customer?',
         header: 'Confirmation',
         icon: 'pi pi-exclamation-triangle',
-        accept: () => {
-            deleteCustomer(cust);
+        accept: async () => {
+            try {
+                await customerStore.deleteCustomer(cust.id);
+                toast.add({ severity: 'success', summary: 'Success', detail: 'Customer deleted successfully', life: 3000 });
+            } catch (error) {
+                toast.add({ severity: 'error', summary: 'Error', detail: error.message || 'Failed to delete customer', life: 3000 });
+            }
         }
     });
-};
-
-const deleteCustomer = (cust) => {
-    customers.value = customers.value.filter(c => c.id !== cust.id);
 };
 
 const deleteSelectedCustomers = () => {
@@ -126,9 +79,14 @@ const deleteSelectedCustomers = () => {
         message: `Are you sure you want to delete the ${selectedCustomers.value.length} selected customers?`,
         header: 'Confirmation',
         icon: 'pi pi-exclamation-triangle',
-        accept: () => {
-            customers.value = customers.value.filter(c => !selectedCustomers.value.includes(c));
-            selectedCustomers.value = [];
+        accept: async () => {
+            try {
+                await Promise.all(selectedCustomers.value.map(cust => customerStore.deleteCustomer(cust.id)));
+                selectedCustomers.value = [];
+                toast.add({ severity: 'success', summary: 'Success', detail: 'Selected customers deleted successfully', life: 3000 });
+            } catch (error) {
+                toast.add({ severity: 'error', summary: 'Error', detail: error.message || 'Failed to delete selected customers', life: 3000 });
+            }
         }
     });
 };
@@ -148,6 +106,8 @@ const getInitials = (firstName, lastName) => {
 
 <template>
   <div>
+    
+    <ConfirmDialog />
     <Card>
       <template #title>
         <div class="flex justify-between items-center">
@@ -162,9 +122,18 @@ const getInitials = (firstName, lastName) => {
           </template>
         </Toolbar>
 
+        <div v-if="customerStore.isLoading" class="text-center py-8">
+          <i class="pi pi-spin pi-spinner text-4xl text-blue-500"></i>
+          <p class="text-lg mt-2">Loading Customers...</p>
+        </div>
+        <div v-else-if="customerStore.error" class="text-center py-8 text-red-500">
+          <p>Error: {{ customerStore.error.message }}</p>
+          <Button label="Retry" @click="customerStore.fetchCustomers()" class="mt-4" />
+        </div>
         <DataTable 
+          v-else
           v-model:selection="selectedCustomers" 
-          :value="customers" 
+          :value="customerStore.customers" 
           responsiveLayout="scroll"
           paginator :rows="10"
           :rowsPerPageOptions="[10, 20, 50]"

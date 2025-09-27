@@ -4,8 +4,7 @@ import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import { useToast } from 'primevue/usetoast';
-import { useAuthStore } from '../../store/auth';
-
+import { useBillStore } from '../../store/bill'; // New
 
 const props = defineProps({
   cartItems: {
@@ -16,7 +15,7 @@ const props = defineProps({
 
 const emit = defineEmits(['increase-quantity', 'decrease-quantity', 'remove-item', 'clear-cart']);
 const toast = useToast();
-const authStore = useAuthStore();
+const billStore = useBillStore(); // New
 
 const total = computed(() => {
   return props.cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0).toFixed(2);
@@ -54,25 +53,14 @@ const handlePayment = async () => {
   };
 
   try {
-    const response = await fetch('/api/orders', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authStore.token}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to create order.');
-    }
+    await billStore.submitOrder(payload); // Use the store action
 
     toast.add({ severity: 'success', summary: 'Payment Successful', detail: 'Order has been created.', life: 3000 });
     emit('clear-cart');
 
   } catch (err) {
-    toast.add({ severity: 'error', summary: 'Payment Failed', detail: err.message, life: 3000 });
+    const errorMessage = err.response?.data?.message || err.message || 'Failed to create order.';
+    toast.add({ severity: 'error', summary: 'Payment Failed', detail: errorMessage, life: 3000 });
   }
 };
 
