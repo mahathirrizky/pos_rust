@@ -52,6 +52,7 @@ const menu = [
   { to: '/admin/employees', icon: 'pi pi-users', tooltip: 'Employees', roles: ['Admin'] },
   { to: '/admin/promotions', icon: 'pi pi-gift', tooltip: 'Promotions', roles: ['Admin'] },
   { to: '/admin/refunds', icon: 'pi pi-replay', tooltip: 'Refunds', roles: ['Admin'] },
+  { to: '/admin/roles', icon: 'pi pi-key', tooltip: 'Role Management', roles: ['Admin', 'Owner'] },
 
   // Owner Links
   { to: '/owner', icon: 'pi pi-briefcase', tooltip: 'Owner Dashboard', roles: ['Owner'] },

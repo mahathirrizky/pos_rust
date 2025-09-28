@@ -6,6 +6,8 @@ use crate::auth::auth_service;
 use crate::repository::employees_repository::EmployeeRepository;
 use serde::{Serialize, Deserialize};
 
+use crate::repository::permissions_repository::PermissionsRepository;
+
 #[derive(Deserialize, Debug)]
 pub struct LoginPayload {
     pub email: String,
@@ -17,6 +19,7 @@ pub struct LoginPayload {
 pub struct LoginSuccessResponse {
     pub token: String,
     pub user: employees::Model,
+    pub permissions: Vec<String>,
 }
 
 pub async fn login(db: web::Data<DatabaseConnection>, payload: web::Json<LoginPayload>) -> impl Responder {
@@ -32,11 +35,16 @@ pub async fn login(db: web::Data<DatabaseConnection>, payload: web::Json<LoginPa
                     }
 
                     // If role is also ok, create token
-                    match auth_service::create_jwt(&user) {
+                    match auth_service::create_jwt(&db, &user).await {
                         Ok(token) => {
-                            let response_data = LoginSuccessResponse { token, user };
-                            println!("Sending success response");
-                            HttpResponse::Ok().json(ApiResponse::new(response_data))
+                            match PermissionsRepository::find_permissions_for_role(&db, user.role_id).await {
+                                Ok(permissions) => {
+                                    let response_data = LoginSuccessResponse { token, user, permissions };
+                                    println!("Sending success response");
+                                    HttpResponse::Ok().json(ApiResponse::new(response_data))
+                                }
+                                Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to fetch permissions".to_string())),
+                            }
                         }
                         Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to create token".to_string())),
                     }

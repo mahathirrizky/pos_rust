@@ -99,6 +99,11 @@ const adminRoutes = [
         component: () => import('../../views/admin/Refunds.vue'),
 
       },
+      {
+        path: 'roles',
+        name: 'admin-roles',
+        component: () => import('../../views/admin/RoleManagement.vue'),
+      },
     ],
   },
 ];

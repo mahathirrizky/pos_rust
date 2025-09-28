@@ -12,7 +12,7 @@ impl PromotionRepository {
             value: ActiveValue::Set(new_promotion.value),
             start_date: ActiveValue::Set(new_promotion.start_date),
             end_date: ActiveValue::Set(new_promotion.end_date),
-            is_active: ActiveValue::Set(new_promotion.is_active.unwrap_or(true)),
+            is_active: ActiveValue::Set(new_promotion.is_active.unwrap_or(true) as i8),
             product_id: ActiveValue::Set(new_promotion.product_id),
             ..Default::default()
         };
@@ -55,7 +55,7 @@ impl PromotionRepository {
             promo.end_date = ActiveValue::Set(end_date);
         }
         if let Some(is_active) = update_data.is_active {
-            promo.is_active = ActiveValue::Set(is_active);
+            promo.is_active = ActiveValue::Set(is_active as i8);
         }
         if let Some(product_id) = update_data.product_id {
             promo.product_id = ActiveValue::Set(Some(product_id));

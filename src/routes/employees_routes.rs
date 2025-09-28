@@ -10,6 +10,11 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
                 allowed_roles: vec!["Owner".to_string()],
             }))
 
+            // Endpoint for Owner and Admin to create other employee roles
+            .route("", web::post().to(employees_handler::create_employee_general).wrap(RoleMiddlewareFactory {
+                allowed_roles: vec!["Owner".to_string(), "Admin".to_string()],
+            }))
+
             // GET all employees (with optional role filter)
             .route("", web::get().to(employees_handler::get_all_employees).wrap(RoleMiddlewareFactory {
                 allowed_roles: vec!["Owner".to_string(), "Admin".to_string(), "StoreManager".to_string()],

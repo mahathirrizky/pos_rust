@@ -25,7 +25,7 @@ impl ReportRepository {
         let total_sales: Option<f64> = orders::Entity::find()
             .join(
                 sea_orm::JoinType::InnerJoin,
-                orders::Relation::OrderItem.def(),
+                orders::Relation::OrderItems.def(),
             )
             .filter(
                 Condition::all()
@@ -57,7 +57,7 @@ impl ReportRepository {
         let mut query = orders::Entity::find()
             .join(
                 sea_orm::JoinType::InnerJoin,
-                orders::Relation::OrderItem.def(),
+                orders::Relation::OrderItems.def(),
             )
             .filter(
                 Condition::all()
@@ -124,7 +124,7 @@ impl ReportRepository {
         let mut query = orders::Entity::find()
             .join(
                 sea_orm::JoinType::InnerJoin,
-                orders::Relation::OrderItem.def(),
+                orders::Relation::OrderItems.def(),
             )
             .filter(
                 Condition::all()
@@ -170,11 +170,11 @@ impl ReportRepository {
         let mut query = orders::Entity::find()
             .join(
                 sea_orm::JoinType::InnerJoin,
-                orders::Relation::OrderItem.def(),
+                orders::Relation::OrderItems.def(),
             )
             .join(
                 sea_orm::JoinType::InnerJoin,
-                orders::Relation::Store.def(),
+                orders::Relation::Stores.def(),
             )
             .filter(
                 Condition::all()

@@ -49,6 +49,34 @@ pub async fn get_all_employees(db: web::Data<DatabaseConnection>, query: web::Qu
     }
 }
 
+pub async fn create_employee_general(db: web::Data<DatabaseConnection>, new_employee: web::Json<CreateEmployee>, claims: web::ReqData<Claims>) -> impl Responder {
+    let mut employee_data = new_employee.into_inner();
+
+    // Role validation logic
+    if employee_data.role == "Owner" {
+        return HttpResponse::Forbidden().json(ApiError::new("Owner role cannot be created via this endpoint".to_string()));
+    }
+
+    if claims.role == "Admin" && employee_data.role == "Admin" {
+        return HttpResponse::Forbidden().json(ApiError::new("Admins cannot create Admin roles".to_string()));
+    }
+
+    let hashed_password = match auth_service::hash_password(&employee_data.password_hash) {
+        Ok(hash) => hash,
+        Err(e) => return HttpResponse::InternalServerError().json(ApiError::new(e.to_string())),
+    };
+    employee_data.password_hash = hashed_password;
+
+    let employee_role = employee_data.role.clone();
+    match EmployeeRepository::create(db.get_ref(), employee_data, employee_role).await {
+        Ok(employee) => {
+            let employee_response = EmployeeResponse::from(employee);
+            HttpResponse::Ok().json(ApiResponse::new(employee_response))
+        },
+        Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to create employee".to_string())),
+    }
+}
+
 pub async fn create_admin(db: web::Data<DatabaseConnection>, new_employee: web::Json<CreateEmployee>) -> impl Responder {
     let mut employee_data = new_employee.into_inner();
     let hashed_password = match auth_service::hash_password(&employee_data.password_hash) {

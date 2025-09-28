@@ -17,7 +17,7 @@ impl OrderItemRepository {
 
     pub async fn get_all_by_store<C: ConnectionTrait>(db: &C, store_id: i32) -> Result<Vec<order_items::Model>, DbErr> {
         order_items::Entity::find()
-            .join(JoinType::InnerJoin, order_items::Relation::Order.def())
+            .join(JoinType::InnerJoin, order_items::Relation::Orders.def())
             .filter(orders::Column::StoreId.eq(store_id))
             .all(db)
             .await
@@ -25,7 +25,7 @@ impl OrderItemRepository {
 
     pub async fn get_all_by_employee<C: ConnectionTrait>(db: &C, employee_id: i32) -> Result<Vec<order_items::Model>, DbErr> {
         order_items::Entity::find()
-            .join(JoinType::InnerJoin, order_items::Relation::Order.def())
+            .join(JoinType::InnerJoin, order_items::Relation::Orders.def())
             .filter(orders::Column::EmployeeId.eq(employee_id))
             .all(db)
             .await

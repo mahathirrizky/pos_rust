@@ -8,8 +8,8 @@ pub struct ProductRepository;
 impl ProductRepository {
     pub async fn get_all<C: ConnectionTrait>(db: &C) -> Result<Vec<ProductWithDetails>, DbErr> {
         products::Entity::find()
-            .join(JoinType::InnerJoin, products::Relation::Category.def())
-            .join(JoinType::InnerJoin, products::Relation::Supplier.def())
+            .join(JoinType::InnerJoin, products::Relation::Categories.def())
+            .join(JoinType::InnerJoin, products::Relation::Suppliers.def())
             .select_only()
             .column(products::Column::Id)
             .column(products::Column::Name)

@@ -12,3 +12,5 @@ pub mod refunds_repository;
 pub mod promotions_repository;
 pub mod reports_repository;
 pub mod purchase_orders_repository;
+pub mod permissions_repository;
+pub mod roles_repository;

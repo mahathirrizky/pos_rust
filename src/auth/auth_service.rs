@@ -4,13 +4,14 @@ use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, 
 use lazy_static::lazy_static;
 use password_hash::{PasswordHasher, SaltString};
 use rand::rngs::OsRng;
-use sea_orm::DbErr;
+use sea_orm::{DbErr, DatabaseConnection};
 use serde::{Deserialize, Serialize};
 use actix_web::{FromRequest, HttpRequest, dev::Payload, http, error::ErrorUnauthorized};
 use std::future::{Future};
 use std::pin::Pin;
 
 use crate::entities::employees;
+use crate::repository::permissions_repository::PermissionsRepository;
 
 lazy_static! {
     static ref JWT_SECRET: String = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
@@ -22,6 +23,7 @@ pub struct Claims {
     pub email: String,
     pub role: String,
     pub store_id: Option<i32>,
+    pub permissions: Vec<String>, // User's permissions
     pub exp: usize, // Expiration time
 }
 
@@ -38,17 +40,20 @@ pub fn verify_password(password: &str, hash: &str) -> Result<bool, DbErr> {
     Ok(Argon2::default().verify_password(password.as_bytes(), &parsed_hash).is_ok())
 }
 
-pub fn create_jwt(employee: &employees::Model) -> Result<String, DbErr> {
+pub async fn create_jwt(db: &DatabaseConnection, employee: &employees::Model) -> Result<String, DbErr> {
     let expiration = Utc::now()
         .checked_add_signed(Duration::hours(24)) // Token valid for 24 hours
         .expect("valid timestamp")
         .timestamp() as usize;
+
+    let permissions = PermissionsRepository::find_permissions_for_role(db, employee.role_id).await?;
 
     let claims = Claims {
         sub: employee.id,
         email: employee.email.clone(),
         role: employee.role.clone(),
         store_id: employee.store_id,
+        permissions,
         exp: expiration,
     };
 

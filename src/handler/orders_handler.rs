@@ -101,7 +101,7 @@ pub async fn create_order(
         if let Some(promo_id) = item_payload.promotion_id {
             if let Some(promotion) = promotions_map.get(&promo_id) {
                 // Apply promotion logic
-                if promotion.is_active && promotion.start_date <= Utc::now() && promotion.end_date >= Utc::now() {
+                if promotion.is_active != 0 && promotion.start_date <= Utc::now() && promotion.end_date >= Utc::now() {
                     // Check if promotion is for a specific product and matches
                     if promotion.product_id.is_none() || promotion.product_id == Some(product.id) {
                         match promotion.promotion_type.as_str() {
