@@ -28,17 +28,17 @@ const handleLogout = () => {
 </script>
 
 <template>
-  <div class="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
-    <h1 class="text-4xl font-bold text-gray-800 mb-8">Welcome to the POS System</h1>
+  <div class="flex flex-col items-center justify-center min-h-screen bg-surface-100 dark:bg-surface-900 p-4">
+    <h1 class="text-4xl font-bold text-surface-800 dark:text-surface-100 mb-8">Welcome to the POS System</h1>
 
     <!-- Authenticated View -->
     <div v-if="authStore.isAuthenticated && userDashboard" class="text-center">
-      <p class="text-xl text-gray-600 mb-8">Hello, {{ authStore.user.first_name }}!</p>
+      <p class="text-xl text-surface-600 dark:text-surface-300 mb-8">Hello, {{ authStore.user.first_name }}!</p>
       <router-link :to="userDashboard.dashboardPath" class="block">
-        <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 p-8 text-center cursor-pointer max-w-sm mx-auto">
+        <div class="bg-surface-0 dark:bg-surface-800 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 p-8 text-center cursor-pointer max-w-sm mx-auto">
           <i :class="userDashboard.icon" class="text-6xl text-primary mb-4"></i>
-          <h2 class="text-2xl font-semibold text-gray-700 mb-2">Go to {{ userDashboard.title }}</h2>
-          <p class="text-gray-600">{{ userDashboard.description }}</p>
+          <h2 class="text-2xl font-semibold text-surface-700 dark:text-surface-200 mb-2">Go to {{ userDashboard.title }}</h2>
+          <p class="text-surface-600 dark:text-surface-300">{{ userDashboard.description }}</p>
         </div>
       </router-link>
       <button @click="handleLogout" class="px-6 py-2 mt-8 text-white bg-red-600 rounded-lg hover:bg-red-800 transition-colors">
@@ -48,14 +48,14 @@ const handleLogout = () => {
 
     <!-- Unauthenticated View -->
     <div v-else>
-      <p class="text-xl text-gray-600 mb-12 text-center">Please select your application to log in.</p>
+      <p class="text-xl text-surface-600 dark:text-surface-300 mb-12 text-center">Please select your application to log in.</p>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         <div v-for="(dashboard, role) in roleDashboards" :key="role">
           <!-- The link now points to the protected dashboard path -->
-          <router-link :to="dashboard.dashboardPath" class="block bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 p-8 text-center cursor-pointer h-full">
+          <router-link :to="dashboard.dashboardPath" class="block bg-surface-0 dark:bg-surface-800 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 p-8 text-center cursor-pointer h-full">
             <i :class="dashboard.icon" class="text-6xl text-primary mb-4"></i>
-            <h2 class="text-2xl font-semibold text-gray-700 mb-2">{{ dashboard.title }}</h2>
-            <p class="text-gray-600">{{ dashboard.description }}</p>
+            <h2 class="text-2xl font-semibold text-surface-700 dark:text-surface-200 mb-2">{{ dashboard.title }}</h2>
+            <p class="text-surface-600 dark:text-surface-300">{{ dashboard.description }}</p>
           </router-link>
         </div>
       </div>

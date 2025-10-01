@@ -32,7 +32,9 @@ export const useEmployeeStore = defineStore('employee', {
           },
           params,
         });
+        console.log('API Response data:', response.data.data);
         this.employees = response.data.data;
+        console.log('Store employees after assignment:', this.employees);
       } catch (error) {
         console.error('Error fetching employees:', error);
       }
@@ -61,8 +63,7 @@ export const useEmployeeStore = defineStore('employee', {
             return;
         }
         const isUpdate = !!employee.id;
-        const roleEndpoint = employee.role.toLowerCase();
-        const url = isUpdate ? `/api/employees/${roleEndpoint}/${employee.id}` : `/api/employees/${roleEndpoint}`;
+        const url = isUpdate ? `/api/employees/${employee.id}` : '/api/employees';
         const method = isUpdate ? 'put' : 'post';
 
         try {
@@ -75,7 +76,6 @@ export const useEmployeeStore = defineStore('employee', {
                 },
                 data: employee,
             });
-            await this.fetchEmployees();
         } catch (error) {
             console.error('Error saving employee:', error);
             throw error;
@@ -87,9 +87,8 @@ export const useEmployeeStore = defineStore('employee', {
             console.error('No token found, user is not authenticated');
             return;
         }
-        const roleEndpoint = employee.role.toLowerCase();
         try {
-            await axios.delete(`/api/employees/${roleEndpoint}/${employee.id}`, {
+            await axios.delete(`/api/employees/${employee.id}`, {
                 headers: {
                     Authorization: `Bearer ${authStore.token}`,
                 },
@@ -97,6 +96,37 @@ export const useEmployeeStore = defineStore('employee', {
             await this.fetchEmployees();
         } catch (error) {
             console.error('Error deleting employee:', error);
+            throw error;
+        }
+    },
+
+    async uploadEmployeeImage(formData) {
+        const authStore = useAuthStore();
+        if (!authStore.token) throw new Error('Not authenticated');
+        try {
+            const response = await axios.post('/api/upload/employee', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    Authorization: `Bearer ${authStore.token}`,
+                },
+            });
+            return response.data.url; 
+        } catch (error) {
+            console.error('Error uploading employee image in store:', error);
+            throw error;
+        }
+    },
+
+    async removeEmployeePhoto(photoUrl) {
+        const authStore = useAuthStore();
+        if (!authStore.token) throw new Error('Not authenticated');
+        try {
+            await axios.delete('/api/upload/employee', {
+                headers: { Authorization: `Bearer ${authStore.token}` },
+                data: { url: photoUrl }
+            });
+        } catch (error) {
+            console.error('Error removing employee photo:', error);
             throw error;
         }
     },

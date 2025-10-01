@@ -16,6 +16,9 @@ pub mod reports_routes;
 pub mod purchase_orders_routes;
 pub mod bills_routes; // New module
 pub mod roles_routes;
+pub mod upload_routes;
+pub mod settings_routes;
+pub mod auth_routes;
 
 pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.configure(categories_routes::configure_routes)
@@ -33,5 +36,8 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
        .configure(reports_routes::configure_routes)
        .configure(purchase_orders_routes::configure_routes)
        .configure(bills_routes::configure_routes)
-       .configure(roles_routes::configure_routes); // Configure new routes
+       .configure(roles_routes::configure_routes) // Configure new routes
+       .configure(upload_routes::init_routes)
+       .configure(settings_routes::configure_routes)
+       .configure(auth_routes::configure_routes);
 }

@@ -1,12 +1,19 @@
 <script setup>
 import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
+import { useThemeStore } from './store/theme'; // Import the theme store
+
+// Initialize the theme store globally
+useThemeStore();
+
 </script>
 
 <template>
-  <Toast />
-  <ConfirmDialog />
-  <router-view />
+  <div class="min-h-screen bg-surface-100 text-surface-800 dark:bg-surface-900 dark:text-surface-100">
+    <Toast />
+    <ConfirmDialog />
+    <router-view />
+  </div>
 </template>
 
 <style>

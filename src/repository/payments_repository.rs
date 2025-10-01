@@ -1,5 +1,6 @@
-use sea_orm::{DbErr, EntityTrait, ActiveModelTrait, ActiveValue, ColumnTrait, QueryFilter, JoinType, QuerySelect, RelationTrait, ConnectionTrait};
+use sea_orm::{DbErr, EntityTrait, ActiveModelTrait, ActiveValue, ColumnTrait, QueryFilter, JoinType, QuerySelect, RelationTrait, ConnectionTrait, DatabaseTransaction};
 use crate::entities::{payments, orders};
+use chrono::{Utc, DateTime};
 
 pub struct PaymentRepository;
 
@@ -25,12 +26,30 @@ impl PaymentRepository {
     }
 
     pub async fn create<C: ConnectionTrait>(db: &C, new_payment: payments::CreatePayment) -> Result<payments::Model, DbErr> {
+        let now: DateTime<Utc> = Utc::now();
         let payment = payments::ActiveModel {
             order_id: ActiveValue::Set(new_payment.order_id),
             payment_method: ActiveValue::Set(new_payment.payment_method),
             amount: ActiveValue::Set(new_payment.amount),
             payment_date: ActiveValue::Set(new_payment.payment_date),
             status: ActiveValue::Set(new_payment.status),
+            created_at: ActiveValue::Set(now),
+            updated_at: ActiveValue::Set(now),
+            ..Default::default()
+        };
+        payment.insert(db).await
+    }
+
+    pub async fn create_in_txn(db: &DatabaseTransaction, new_payment: payments::CreatePayment) -> Result<payments::Model, DbErr> {
+        let now: DateTime<Utc> = Utc::now();
+        let payment = payments::ActiveModel {
+            order_id: ActiveValue::Set(new_payment.order_id),
+            payment_method: ActiveValue::Set(new_payment.payment_method),
+            amount: ActiveValue::Set(new_payment.amount),
+            payment_date: ActiveValue::Set(new_payment.payment_date),
+            status: ActiveValue::Set(new_payment.status),
+            created_at: ActiveValue::Set(now),
+            updated_at: ActiveValue::Set(now),
             ..Default::default()
         };
         payment.insert(db).await
@@ -59,6 +78,7 @@ impl PaymentRepository {
             if let Some(status) = update_data.status {
                 active_model.status = ActiveValue::Set(status);
             }
+            active_model.updated_at = ActiveValue::Set(Utc::now());
             Ok(Some(active_model.update(db).await?))
         } else {
             Ok(None)

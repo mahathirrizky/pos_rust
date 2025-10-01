@@ -38,6 +38,10 @@ impl RoleRepository {
         }
     }
 
+    pub async fn find_by_name<C: ConnectionTrait>(db: &C, name: String) -> Result<Option<roles::Model>, DbErr> {
+        roles::Entity::find().filter(roles::Column::Name.eq(name)).one(db).await
+    }
+
     pub async fn delete<C: ConnectionTrait>(db: &C, id: i32) -> Result<u64, DbErr> {
         let res = roles::Entity::delete_by_id(id).exec(db).await?;
         Ok(res.rows_affected)

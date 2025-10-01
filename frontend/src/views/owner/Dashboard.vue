@@ -34,6 +34,8 @@ const salesChartData = computed(() => {
 });
 
 const salesChartOptions = ref({
+  maintainAspectRatio: false,
+  aspectRatio: 0.6,
   scales: {
     y: {
       beginAtZero: true
@@ -107,7 +109,7 @@ onMounted(async () => {
         </Card>
       </div>
 
-      <p class="mt-8 text-gray-600">More high-level business overview and reports will be displayed here.</p>
+      <p class="mt-8 text-surface-600 dark:text-surface-300">More high-level business overview and reports will be displayed here.</p>
     </div>
   </div>
 </template>

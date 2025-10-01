@@ -1,7 +1,7 @@
 <template>
   <div>
     <h1 class="text-2xl font-semibold">Bills (Owner)</h1>
-    <p class="mt-2 text-gray-600">View and manage bills as an Owner.</p>
+    <p class="mt-2 text-surface-600 dark:text-surface-300">View and manage bills as an Owner.</p>
   </div>
 </template>
 

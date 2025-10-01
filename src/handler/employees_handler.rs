@@ -1,11 +1,15 @@
-use crate::auth::auth_service::Claims;
+use crate::auth::auth_service::{self, Claims};
 use crate::repository::employees_repository::EmployeeRepository;
+use crate::repository::roles_repository::RoleRepository;
 use actix_web::{web, HttpResponse, Responder};
 use crate::helper::response::{ApiResponse, ApiError};
-use crate::entities::employees::{CreateEmployee, UpdateEmployee, EmployeeReportData, EmployeeResponse};
+use crate::entities::employees::{CreateEmployee, UpdateEmployee, EmployeeReportData, EmployeeResponse, CreateAdminPayload};
 use sea_orm::DatabaseConnection;
 use crate::guard::employee_guard::EmployeeAccessGuard;
-use crate::auth::auth_service;
+use crate::repository::password_reset_tokens_repository::PasswordResetTokenRepository;
+use crate::repository::settings_repository;
+use crate::helper::email;
+
 // use crate::guard::role_guard::{Claims, has_role, ErrorResponse as RoleErrorResponse};
 
 use serde::Deserialize;
@@ -44,53 +48,142 @@ pub async fn get_all_employees(db: web::Data<DatabaseConnection>, query: web::Qu
     }
 
     match EmployeeRepository::get_all(db.get_ref(), effective_role_filter, effective_store_id_filter, roles_to_exclude_vec).await {
-        Ok(employees) => HttpResponse::Ok().json(ApiResponse::new(employees)),
+        Ok(employees) => {
+            let employee_responses: Vec<EmployeeResponse> = employees.into_iter().map(EmployeeResponse::from).collect();
+            HttpResponse::Ok().json(ApiResponse::new(employee_responses))
+        },
         Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to fetch employees".to_string())),
     }
 }
 
-pub async fn create_employee_general(db: web::Data<DatabaseConnection>, new_employee: web::Json<CreateEmployee>, claims: web::ReqData<Claims>) -> impl Responder {
-    let mut employee_data = new_employee.into_inner();
+pub async fn create_employee_general(db: web::Data<DatabaseConnection>, new_employee: web::Json<CreateEmployee>, _claims: web::ReqData<Claims>) -> impl Responder {
+    let employee_data = new_employee.into_inner();
 
-    // Role validation logic
-    if employee_data.role == "Owner" {
-        return HttpResponse::Forbidden().json(ApiError::new("Owner role cannot be created via this endpoint".to_string()));
-    }
-
-    if claims.role == "Admin" && employee_data.role == "Admin" {
-        return HttpResponse::Forbidden().json(ApiError::new("Admins cannot create Admin roles".to_string()));
-    }
-
-    let hashed_password = match auth_service::hash_password(&employee_data.password_hash) {
-        Ok(hash) => hash,
-        Err(e) => return HttpResponse::InternalServerError().json(ApiError::new(e.to_string())),
-    };
-    employee_data.password_hash = hashed_password;
-
-    let employee_role = employee_data.role.clone();
-    match EmployeeRepository::create(db.get_ref(), employee_data, employee_role).await {
+    match EmployeeRepository::create(db.get_ref(), employee_data).await {
         Ok(employee) => {
+            // --- Send Set Password Email ---
+            let db_clone = db.get_ref().clone();
+            let created_employee = employee.clone();
+            tokio::spawn(async move {
+                // 1. Generate Token
+                let token = ::uuid::Uuid::new_v4().to_string();
+                let expires_at = chrono::Utc::now().naive_utc() + chrono::Duration::hours(24);
+
+                // 2. Store Token
+                if let Err(e) = PasswordResetTokenRepository::create(&db_clone, created_employee.id, token.clone(), expires_at).await {
+                    eprintln!("Failed to create password reset token: {}", e);
+                    return; // Don't send email if token wasn't saved
+                }
+
+                // 3. Fetch Email Settings
+                match settings_repository::get_settings(&db_clone).await {
+                    Ok(settings) => {
+                        // 4. Send Email
+                        let frontend_url = std::env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
+                        let set_password_url = format!("{}/set-password?token={}", frontend_url, token);
+
+                        let subject = "Set Your Account Password";
+                        let body = format!(
+                            "Hello {},\n\nWelcome! Your account has been created. Please set your password by clicking the link below:\n\n{}\n\nThe link will expire in 24 hours.",
+                            created_employee.first_name,
+                            set_password_url
+                        );
+
+                        if let Err(e) = email::send_email(
+                            &settings.email,
+                            &created_employee.email,
+                            Some(&created_employee.first_name),
+                            subject,
+                            &body,
+                        ).await {
+                            eprintln!("Failed to send set-password email: {}", e);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to fetch settings for sending email: {}", e);
+                    }
+                }
+            });
+            // --- End Email Logic ---
+
             let employee_response = EmployeeResponse::from(employee);
             HttpResponse::Ok().json(ApiResponse::new(employee_response))
         },
-        Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to create employee".to_string())),
+        Err(e) => HttpResponse::InternalServerError().json(ApiError::new(format!("Failed to create employee: {}", e.to_string()))),
     }
 }
 
-pub async fn create_admin(db: web::Data<DatabaseConnection>, new_employee: web::Json<CreateEmployee>) -> impl Responder {
-    let mut employee_data = new_employee.into_inner();
-    let hashed_password = match auth_service::hash_password(&employee_data.password_hash) {
-        Ok(hash) => hash,
-        Err(e) => return HttpResponse::InternalServerError().json(ApiError::new(e.to_string())),
+pub async fn create_admin(db: web::Data<DatabaseConnection>, new_admin_payload: web::Json<CreateAdminPayload>) -> impl Responder {
+    // Find the Admin role ID
+    let admin_role = match RoleRepository::find_by_name(db.get_ref(), "Admin".to_string()).await {
+        Ok(Some(role)) => role,
+        Ok(None) => return HttpResponse::InternalServerError().json(ApiError::new("Admin role not found in database".to_string())),
+        Err(e) => return HttpResponse::InternalServerError().json(ApiError::new(format!("Failed to query admin role: {}", e.to_string()))),
     };
-    employee_data.password_hash = hashed_password;
 
-    match EmployeeRepository::create(db.get_ref(), employee_data, "Admin".to_string()).await {
+    let payload = new_admin_payload.into_inner();
+
+    let employee_data = CreateEmployee {
+        first_name: payload.first_name,
+        last_name: payload.last_name,
+        email: payload.email,
+        phone: payload.phone,
+        store_id: payload.store_id,
+        role_id: admin_role.id,
+        photo_url: payload.photo_url,
+    };
+
+    match EmployeeRepository::create(db.get_ref(), employee_data).await {
         Ok(employee) => {
+            // --- Send Set Password Email ---
+            let db_clone = db.get_ref().clone();
+            let created_employee = employee.clone();
+            tokio::spawn(async move {
+                // 1. Generate Token
+                let token = ::uuid::Uuid::new_v4().to_string();
+                let expires_at = chrono::Utc::now().naive_utc() + chrono::Duration::hours(24);
+
+                // 2. Store Token
+                if let Err(e) = PasswordResetTokenRepository::create(&db_clone, created_employee.id, token.clone(), expires_at).await {
+                    eprintln!("Failed to create password reset token: {}", e);
+                    return; // Don't send email if token wasn't saved
+                }
+
+                // 3. Fetch Email Settings
+                match settings_repository::get_settings(&db_clone).await {
+                    Ok(settings) => {
+                        // 4. Send Email
+                        let frontend_url = std::env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5173".to_string());
+                        let set_password_url = format!("{}/set-password?token={}", frontend_url, token);
+
+                        let subject = "Set Your Account Password";
+                        let body = format!(
+                            "Hello {},\n\nWelcome! Your account has been created. Please set your password by clicking the link below:\n\n{}\n\nThe link will expire in 24 hours.",
+                            created_employee.first_name,
+                            set_password_url
+                        );
+
+                        if let Err(e) = email::send_email(
+                            &settings.email,
+                            &created_employee.email,
+                            Some(&created_employee.first_name),
+                            subject,
+                            &body,
+                        ).await {
+                            eprintln!("Failed to send set-password email: {}", e);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to fetch settings for sending email: {}", e);
+                    }
+                }
+            });
+            // --- End Email Logic ---
+
             let employee_response = EmployeeResponse::from(employee);
             HttpResponse::Ok().json(ApiResponse::new(employee_response))
         },
-        Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to create admin".to_string())),
+        Err(e) => HttpResponse::InternalServerError().json(ApiError::new(format!("Failed to create admin: {}", e.to_string()))),
     }
 }
 
@@ -109,16 +202,16 @@ pub async fn update_employee(guard: EmployeeAccessGuard, db: web::Data<DatabaseC
     let mut employee_data = update_data.into_inner();
 
     // Hash password if it is provided in the update
-    if let Some(password) = employee_data.password_hash.clone() {
+    if let Some(password) = employee_data.password.clone() {
         if !password.is_empty() {
             let hashed_password = match auth_service::hash_password(&password) {
                 Ok(hash) => hash,
                 Err(e) => return HttpResponse::InternalServerError().json(ApiError::new(e.to_string())),
             };
-            employee_data.password_hash = Some(hashed_password);
+            employee_data.password = Some(hashed_password);
         } else {
-            // If password is an empty string, keep the old one by setting it to None
-            employee_data.password_hash = None;
+            // If password is an empty string, do not update it.
+            employee_data.password = None;
         }
     }
 

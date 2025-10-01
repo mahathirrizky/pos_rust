@@ -85,9 +85,9 @@ const getStockLevel = (quantity) => {
         <DataTable :value="filteredInventory" responsiveLayout="scroll" paginator :rows="10">
           <template #empty>
             <div class="text-center py-8">
-                <i class="pi pi-box text-4xl text-gray-400 mb-2"></i>
-                <h3 class="text-xl font-semibold text-gray-600">No Inventory Found</h3>
-                <p class="text-gray-500">No inventory items match the current filter.</p>
+                <i class="pi pi-box text-4xl text-surface-400 dark:text-surface-500 mb-2"></i>
+                <h3 class="text-xl font-semibold text-surface-600 dark:text-surface-300">No Inventory Found</h3>
+                <p class="text-surface-500 dark:text-surface-400">No inventory items match the current filter.</p>
             </div>
           </template>
 
@@ -104,7 +104,7 @@ const getStockLevel = (quantity) => {
           </Column>
           <Column headerStyle="width: 12rem; text-align: center" bodyStyle="text-align: center">
              <template #body="slotProps">
-                <Button label="Adjust" icon="pi pi-pencil" severity="secondary" @click="openAdjustmentDialog(slotProps.data)" />
+                <Button label="Adjust" icon="pi pi-pencil" severity="success" @click="openAdjustmentDialog(slotProps.data)" />
             </template>
           </Column>
         </DataTable>
@@ -115,7 +115,7 @@ const getStockLevel = (quantity) => {
       <div class="p-grid p-fluid grid-nogutter">
         <div class="field col-12 p-2">
             <div class="font-semibold text-lg">{{ selectedItem.product_name }}</div>
-            <div class="text-gray-500">{{ selectedItem.store_name }}</div>
+            <div class="text-surface-500 dark:text-surface-400">{{ selectedItem.store_name }}</div>
         </div>
         <div class="field col-12 p-2">
             <FloatLabel variant="on">

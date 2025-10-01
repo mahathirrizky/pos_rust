@@ -88,6 +88,19 @@ export const useProductStore = defineStore('product', () => {
     }
   }
 
+  async function removePhoto(photoUrl) {
+    if (!authStore.token) throw new Error('Not authenticated');
+    try {
+      await axios.delete('/api/upload/product', {
+        headers: { Authorization: `Bearer ${authStore.token}` },
+        data: { url: photoUrl }
+      });
+    } catch (error) {
+      console.error('Error removing photo:', error);
+      throw error;
+    }
+  }
+
   // GETTERS (as computed properties)
   const productsWithRealtimeStock = computed(() => {
     if (!products.value.length) return [];
@@ -113,6 +126,24 @@ export const useProductStore = defineStore('product', () => {
     }));
   });
 
+  async function uploadProductImage(formData) {
+    if (!authStore.token) throw new Error('Not authenticated');
+    console.log('Uploading image with formData:', formData); // Added console.log
+    try {
+      const response = await axios.post('/api/upload/product', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${authStore.token}`,
+        },
+      });
+      console.log('Image upload response:', response.data); // Added console.log
+      return response.data.url; // Return the URL of the uploaded image
+    } catch (error) {
+      console.error('Error uploading product image in store:', error);
+      throw error;
+    }
+  }
+
   return {
     products,
     categories,
@@ -122,6 +153,8 @@ export const useProductStore = defineStore('product', () => {
     fetchSuppliers,
     saveProduct,
     deleteProduct,
+    removePhoto, // Expose the new action
+    uploadProductImage, // Expose the new action
     productsWithRealtimeStock, // Expose the new getter
   };
 });

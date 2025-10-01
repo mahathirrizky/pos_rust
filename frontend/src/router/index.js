@@ -16,6 +16,8 @@ const loginRoutes = [
 
 const routes = [
   { path: '/', name: 'LandingPage', component: () => import('../views/LandingPageView.vue') },
+  { path: '/set-password', name: 'SetPassword', component: () => import('../views/auth/SetPassword.vue') },
+  { path: '/forgot-password', name: 'ForgotPassword', component: () => import('../views/auth/ForgotPassword.vue') },
   { path: '/unauthorized', name: 'Unauthorized', component: () => import('../views/auth/UnauthorizedView.vue') },
   ...loginRoutes,
   cashierRoutes,

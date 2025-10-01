@@ -17,8 +17,11 @@ pub struct Model {
     pub sku: String,
     pub category_id: i32,
     pub supplier_id: i32,
+    pub photo_url: Option<String>,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,
+    #[sea_orm(column_type = "Date", nullable)]
+    pub expires_at: Option<Date>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -103,6 +106,8 @@ pub struct CreateProduct {
     pub sku: String,
     pub category_id: i32,
     pub supplier_id: i32,
+    pub photo_url: Option<String>,
+    pub expires_at: Option<Date>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -113,6 +118,8 @@ pub struct UpdateProduct {
     pub sku: Option<String>,
     pub category_id: Option<i32>,
     pub supplier_id: Option<i32>,
+    pub photo_url: Option<String>,
+    pub expires_at: Option<Date>,
 }
 
 #[derive(Debug, FromQueryResult, Serialize, Deserialize)]
@@ -124,8 +131,10 @@ pub struct ProductWithDetails {
     pub sku: String,
     pub category_id: i32,
     pub supplier_id: i32,
+    pub photo_url: Option<String>,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,
+    pub expires_at: Option<Date>,
     pub category_name: String,
     pub supplier_name: String,
 }

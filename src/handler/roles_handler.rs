@@ -9,7 +9,7 @@ use crate::repository::permissions_repository::PermissionsRepository;
 use crate::extractor::claims_extractor::ClaimsExtractor;
 
 pub async fn get_all_roles(db: web::Data<DatabaseConnection>, claims: ClaimsExtractor) -> impl Responder {
-    if !claims.0.permissions.contains(&"manage_roles".to_string()) {
+    if !claims.0.permissions.contains(&"roles:read".to_string()) {
         return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Insufficient privileges".to_string()));
     }
     match RoleRepository::get_all(db.get_ref()).await {
@@ -19,7 +19,7 @@ pub async fn get_all_roles(db: web::Data<DatabaseConnection>, claims: ClaimsExtr
 }
 
 pub async fn get_role_by_id(db: web::Data<DatabaseConnection>, path: web::Path<i32>, claims: ClaimsExtractor) -> impl Responder {
-    if !claims.0.permissions.contains(&"manage_roles".to_string()) {
+    if !claims.0.permissions.contains(&"roles:read".to_string()) {
         return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Insufficient privileges".to_string()));
     }
     let id = path.into_inner();
@@ -31,7 +31,7 @@ pub async fn get_role_by_id(db: web::Data<DatabaseConnection>, path: web::Path<i
 }
 
 pub async fn create_role(db: web::Data<DatabaseConnection>, new_role: web::Json<CreateRole>, claims: ClaimsExtractor) -> impl Responder {
-    if !claims.0.permissions.contains(&"manage_roles".to_string()) {
+    if !claims.0.permissions.contains(&"roles:create".to_string()) {
         return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Insufficient privileges".to_string()));
     }
     match RoleRepository::create(db.get_ref(), new_role.into_inner()).await {
@@ -41,7 +41,7 @@ pub async fn create_role(db: web::Data<DatabaseConnection>, new_role: web::Json<
 }
 
 pub async fn update_role(db: web::Data<DatabaseConnection>, path: web::Path<i32>, update_data: web::Json<UpdateRole>, claims: ClaimsExtractor) -> impl Responder {
-    if !claims.0.permissions.contains(&"manage_roles".to_string()) {
+    if !claims.0.permissions.contains(&"roles:update".to_string()) {
         return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Insufficient privileges".to_string()));
     }
     let id = path.into_inner();
@@ -53,7 +53,7 @@ pub async fn update_role(db: web::Data<DatabaseConnection>, path: web::Path<i32>
 }
 
 pub async fn delete_role(db: web::Data<DatabaseConnection>, path: web::Path<i32>, claims: ClaimsExtractor) -> impl Responder {
-    if !claims.0.permissions.contains(&"manage_roles".to_string()) {
+    if !claims.0.permissions.contains(&"roles:delete".to_string()) {
         return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Insufficient privileges".to_string()));
     }
     let id = path.into_inner();
@@ -65,18 +65,18 @@ pub async fn delete_role(db: web::Data<DatabaseConnection>, path: web::Path<i32>
 }
 
 pub async fn get_role_permissions(db: web::Data<DatabaseConnection>, path: web::Path<i32>, claims: ClaimsExtractor) -> impl Responder {
-    if !claims.0.permissions.contains(&"manage_permissions".to_string()) {
+    if !claims.0.permissions.contains(&"permissions:read".to_string()) {
         return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Insufficient privileges".to_string()));
     }
     let role_id = path.into_inner();
     match PermissionsRepository::find_permissions_for_role(db.get_ref(), role_id).await {
-        Ok(permissions) => HttpResponse::Ok().json(ApiResponse::new(permissions)),
+        Ok(permissions) => HttpResponse::Ok().json(ApiResponse::new(permissions.into_iter().map(|p| p.id).collect::<Vec<i32>>())),
         Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to fetch role permissions".to_string())),
     }
 }
 
 pub async fn assign_permission_to_role(db: web::Data<DatabaseConnection>, payload: web::Json<AssignPermissionToRole>, claims: ClaimsExtractor) -> impl Responder {
-    if !claims.0.permissions.contains(&"manage_permissions".to_string()) {
+    if !claims.0.permissions.contains(&"permissions:assign".to_string()) {
         return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Insufficient privileges".to_string()));
     }
     match RoleRepository::assign_permission(db.get_ref(), payload.role_id, payload.permission_id).await {
@@ -86,7 +86,7 @@ pub async fn assign_permission_to_role(db: web::Data<DatabaseConnection>, payloa
 }
 
 pub async fn remove_permission_from_role(db: web::Data<DatabaseConnection>, payload: web::Json<RemovePermissionFromRole>, claims: ClaimsExtractor) -> impl Responder {
-    if !claims.0.permissions.contains(&"manage_permissions".to_string()) {
+    if !claims.0.permissions.contains(&"permissions:assign".to_string()) {
         return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Insufficient privileges".to_string()));
     }
     match RoleRepository::remove_permission(db.get_ref(), payload.role_id, payload.permission_id).await {
@@ -97,7 +97,7 @@ pub async fn remove_permission_from_role(db: web::Data<DatabaseConnection>, payl
 }
 
 pub async fn get_all_permissions(db: web::Data<DatabaseConnection>, claims: ClaimsExtractor) -> impl Responder {
-    if !claims.0.permissions.contains(&"manage_permissions".to_string()) {
+    if !claims.0.permissions.contains(&"permissions:read".to_string()) {
         return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Insufficient privileges".to_string()));
     }
     match PermissionsRepository::get_all(db.get_ref()).await {
@@ -107,7 +107,7 @@ pub async fn get_all_permissions(db: web::Data<DatabaseConnection>, claims: Clai
 }
 
 pub async fn create_permission(db: web::Data<DatabaseConnection>, new_permission: web::Json<CreatePermission>, claims: ClaimsExtractor) -> impl Responder {
-    if !claims.0.permissions.contains(&"manage_permissions".to_string()) {
+    if !claims.0.permissions.contains(&"permissions:create".to_string()) {
         return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Insufficient privileges".to_string()));
     }
     match PermissionsRepository::create(db.get_ref(), new_permission.into_inner()).await {
@@ -117,7 +117,7 @@ pub async fn create_permission(db: web::Data<DatabaseConnection>, new_permission
 }
 
 pub async fn update_permission(db: web::Data<DatabaseConnection>, path: web::Path<i32>, update_data: web::Json<UpdatePermission>, claims: ClaimsExtractor) -> impl Responder {
-    if !claims.0.permissions.contains(&"manage_permissions".to_string()) {
+    if !claims.0.permissions.contains(&"permissions:update".to_string()) {
         return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Insufficient privileges".to_string()));
     }
     let id = path.into_inner();
@@ -129,7 +129,7 @@ pub async fn update_permission(db: web::Data<DatabaseConnection>, path: web::Pat
 }
 
 pub async fn delete_permission(db: web::Data<DatabaseConnection>, path: web::Path<i32>, claims: ClaimsExtractor) -> impl Responder {
-    if !claims.0.permissions.contains(&"manage_permissions".to_string()) {
+    if !claims.0.permissions.contains(&"permissions:delete".to_string()) {
         return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Insufficient privileges".to_string()));
     }
     let id = path.into_inner();

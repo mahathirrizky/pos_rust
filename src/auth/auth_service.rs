@@ -46,7 +46,7 @@ pub async fn create_jwt(db: &DatabaseConnection, employee: &employees::Model) ->
         .expect("valid timestamp")
         .timestamp() as usize;
 
-    let permissions = PermissionsRepository::find_permissions_for_role(db, employee.role_id).await?;
+    let permissions = PermissionsRepository::find_permissions_for_role(db, employee.role_id).await?.into_iter().map(|p| p.name).collect();
 
     let claims = Claims {
         sub: employee.id,

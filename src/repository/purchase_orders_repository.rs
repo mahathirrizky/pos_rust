@@ -2,6 +2,7 @@ use sea_orm::{DbErr, Set, EntityTrait, ActiveModelTrait, DatabaseConnection, Que
 use crate::entities::{purchase_orders, purchase_order_items, suppliers, stores, products};
 use crate::repository::inventory_repository::InventoryRepository;
 use crate::handler::purchase_orders_handler::ReceiveItem;
+use chrono::{Utc, DateTime};
 
 pub struct PurchaseOrderRepository;
 
@@ -12,12 +13,15 @@ impl PurchaseOrderRepository {
         store_id: i32,
         employee_id: Option<i32>,
     ) -> Result<purchase_orders::Model, DbErr> {
+        let now: DateTime<Utc> = Utc::now();
         let new_po = purchase_orders::ActiveModel {
             supplier_id: Set(supplier_id),
             store_id: Set(store_id),
             employee_id: Set(employee_id),
-            order_date: Set(chrono::Utc::now().into()),
+            order_date: Set(now.into()),
             status: Set("draft".to_owned()),
+            created_at: Set(now),
+            updated_at: Set(now),
             ..Default::default()
         };
 
@@ -32,11 +36,14 @@ impl PurchaseOrderRepository {
         quantity_ordered: i32,
         unit_price: sea_orm::prelude::Decimal,
     ) -> Result<purchase_order_items::Model, DbErr> {
+        let now: DateTime<Utc> = Utc::now();
         let new_item = purchase_order_items::ActiveModel {
             purchase_order_id: Set(purchase_order_id),
             product_id: Set(product_id),
             quantity_ordered: Set(quantity_ordered),
             unit_price: Set(unit_price),
+            created_at: Set(now),
+            updated_at: Set(now),
             ..Default::default()
         };
 
@@ -91,6 +98,7 @@ impl PurchaseOrderRepository {
         if let Some(po) = po {
             let mut active_po: purchase_orders::ActiveModel = po.into();
             active_po.status = Set(new_status);
+            active_po.updated_at = Set(Utc::now());
             active_po.update(db).await
         } else {
             Err(DbErr::Custom("Purchase Order not found".to_owned()))
@@ -132,6 +140,7 @@ impl PurchaseOrderRepository {
             let mut po_item_active: purchase_order_items::ActiveModel = po_item.into();
             let new_quantity = po_item_active.quantity_received.as_ref() + item.quantity_received;
             po_item_active.quantity_received = Set(new_quantity);
+            po_item_active.updated_at = Set(Utc::now());
             po_item_active.update(&txn).await?;
         }
 

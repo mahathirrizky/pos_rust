@@ -1,10 +1,5 @@
-use sea_orm::{DatabaseConnection, DbErr, FromQueryResult, EntityTrait, ColumnTrait, QueryFilter, QuerySelect, ActiveModelTrait, ActiveValue, ConnectionTrait};
+use sea_orm::{DatabaseConnection, DbErr, EntityTrait, ColumnTrait, QueryFilter, ActiveModelTrait, ActiveValue, ConnectionTrait};
 use crate::entities::{permissions, role_permissions};
-
-#[derive(FromQueryResult)]
-struct PermissionName {
-    name: String,
-}
 
 pub struct PermissionsRepository;
 
@@ -43,16 +38,13 @@ impl PermissionsRepository {
         Ok(res.rows_affected)
     }
 
-    pub async fn find_permissions_for_role(db: &DatabaseConnection, role_id: i32) -> Result<Vec<String>, DbErr> {
+    pub async fn find_permissions_for_role(db: &DatabaseConnection, role_id: i32) -> Result<Vec<permissions::Model>, DbErr> {
         let permissions = permissions::Entity::find()
-            .select_only()
-            .column(permissions::Column::Name)
             .inner_join(role_permissions::Entity)
             .filter(role_permissions::Column::RoleId.eq(role_id))
-            .into_model::<PermissionName>()
             .all(db)
             .await?;
 
-        Ok(permissions.into_iter().map(|p| p.name).collect())
+        Ok(permissions)
     }
 }

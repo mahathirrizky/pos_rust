@@ -38,6 +38,22 @@ export const useBillStore = defineStore('bill', () => {
     }
   }
 
+  async function fetchCashierOrders() {
+    isLoading.value = true;
+    error.value = null;
+    try {
+      const response = await axios.get('/api/orders', {
+        headers: { Authorization: `Bearer ${authStore.token}` }
+      });
+      bills.value = response.data.data;
+    } catch (e) {
+      error.value = e;
+      console.error('Error fetching cashier orders:', e);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   async function submitOrder(orderPayload) {
     if (!authStore.token) {
       throw new Error('Authentication token not found.');
@@ -59,6 +75,7 @@ export const useBillStore = defineStore('bill', () => {
     isLoading,
     error,
     fetchBills,
+    fetchCashierOrders,
     submitOrder,
   };
 });

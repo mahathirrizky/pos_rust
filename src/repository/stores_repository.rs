@@ -1,5 +1,6 @@
 use sea_orm::{DatabaseConnection, DbErr, EntityTrait, ActiveModelTrait, ActiveValue};
 use crate::entities::stores;
+use chrono::{Utc, DateTime};
 
 pub struct StoreRepository;
 
@@ -9,10 +10,13 @@ impl StoreRepository {
     }
 
     pub async fn create(db: &DatabaseConnection, new_store: stores::CreateStore) -> Result<stores::Model, DbErr> {
+        let now: DateTime<Utc> = Utc::now();
         let store = stores::ActiveModel {
             name: ActiveValue::Set(new_store.name),
             address: ActiveValue::Set(new_store.address),
             phone: ActiveValue::Set(new_store.phone),
+            created_at: ActiveValue::Set(now),
+            updated_at: ActiveValue::Set(now),
             ..Default::default()
         };
         store.insert(db).await
@@ -35,6 +39,7 @@ impl StoreRepository {
             if let Some(phone) = update_data.phone {
                 active_model.phone = ActiveValue::Set(Some(phone));
             }
+            active_model.updated_at = ActiveValue::Set(Utc::now());
             Ok(Some(active_model.update(db).await?))
         } else {
             Ok(None)

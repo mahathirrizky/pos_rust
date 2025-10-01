@@ -5,6 +5,11 @@ import ToggleSwitch from 'primevue/toggleswitch';
 import Select from 'primevue/select';
 import Button from 'primevue/button';
 import { useToast } from 'primevue/usetoast';
+import { useThemeStore } from '../../store/theme';
+import { storeToRefs } from 'pinia';
+
+const themeStore = useThemeStore();
+const { isDark } = storeToRefs(themeStore);
 
 const toast = useToast();
 
@@ -57,6 +62,14 @@ const saveSettings = () => {
                     </div>
 
                     <div class="field col-12">
+                        <h3 class="text-lg font-semibold my-4 border-b pb-2">Appearance</h3>
+                        <div class="flex items-center">
+                            <ToggleSwitch v-model="isDark" inputId="theme-switcher" class="mr-2" />
+                            <label for="theme-switcher">Dark Mode</label>
+                        </div>
+                    </div>
+
+                    <div class="field col-12">
                         <h3 class="text-lg font-semibold my-4 border-b pb-2">Localization</h3>
                         <div class="field">
                             <label for="timezone">Timezone</label>
@@ -71,7 +84,7 @@ const saveSettings = () => {
             </template>
             <template #footer>
                 <div class="flex justify-end">
-                    <Button label="Save Settings" icon="pi pi-check" @click="saveSettings"></Button>
+                    <Button label="Save Settings" icon="pi pi-check" severity="success" @click="saveSettings"></Button>
                 </div>
             </template>
         </Card>

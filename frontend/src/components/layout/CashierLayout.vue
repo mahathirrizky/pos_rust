@@ -9,13 +9,15 @@ const employee = computed(() => authStore.user);
 </script>
 
 <template>
-  <div class="flex bg-gray-50">
+  <div class="flex h-screen bg-surface-50 dark:bg-surface-900">
     <Sidebar :employee="employee" />
-    <main class="flex-grow p-6 h-screen overflow-auto">
-      <router-view />
-    </main>
-    <div v-if="employee" class="absolute bottom-0 right-0 p-4 text-sm text-gray-600">
-      Logged in as: {{ employee.first_name }} {{ employee.last_name }} ({{ employee.role }})
+    <div class="flex flex-col flex-grow">
+      <main class="flex-grow overflow-hidden p-6">
+        <router-view />
+      </main>
+      <footer v-if="employee" class="p-4 text-sm text-right text-surface-600 dark:text-surface-300 border-t border-surface-200 dark:border-surface-700">
+        Logged in as: <strong>{{ employee.first_name }} {{ employee.last_name }}</strong> ({{ employee.role }})
+      </footer>
     </div>
   </div>
 </template>

@@ -1,25 +1,28 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-import Button from 'primevue/button';
-import ProgressSpinner from 'primevue/progressspinner';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
+
 import InputText from 'primevue/inputtext';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
-import Card from 'primevue/card';
+import DataView from 'primevue/dataview';
+
+import { useToast } from 'primevue/usetoast';
 import { useProductStore } from '../../store/product';
-import { useInventoryStore } from '../../store/inventory'; // Still need this to trigger fetch
+import { useInventoryStore } from '../../store/inventory';
+import { useCartStore } from '../../store/cart';
 
 const productStore = useProductStore();
-const inventoryStore = useInventoryStore(); // Keep this to call fetchInventory
+const inventoryStore = useInventoryStore();
+const cartStore = useCartStore();
+const toast = useToast();
 
 const searchQuery = ref('');
 const searchInput = ref(null);
+const layout = ref('grid');
 
-const emit = defineEmits(['add-to-cart']);
+const emit = defineEmits(['product-added']);
 
-// The search filter now uses the new getter from the product store
 const filteredProducts = computed(() => {
-  // The getter is already reactive and contains the merged data
   const source = productStore.productsWithRealtimeStock;
   if (!searchQuery.value) {
     return source;
@@ -30,70 +33,148 @@ const filteredProducts = computed(() => {
   );
 });
 
-onMounted(() => {
-  // Fetch from both stores to populate them initially.
-  // The inventory store will then keep itself updated via WebSocket.
-  productStore.fetchProducts();
-  inventoryStore.fetchInventory();
-
+const focusInput = () => {
   if (searchInput.value && searchInput.value.$el) {
     searchInput.value.$el.focus();
   }
+};
+
+defineExpose({
+  focusInput
+});
+
+const handleGlobalKeyDown = (event) => {
+  const target = event.target;
+  // Ignore if the event is already coming from an input, textarea, or a button
+  if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON') {
+    return;
+  }
+
+  // Check if the key is a printable character (and not a control key like Shift, etc.)
+  if (event.key.length === 1) {
+    focusInput();
+  }
+};
+
+onMounted(() => {
+  productStore.fetchProducts();
+  inventoryStore.fetchInventory();
+  focusInput(); // Initial focus
+  window.addEventListener('keydown', handleGlobalKeyDown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalKeyDown);
 });
 
 const handleAddToCart = (product) => {
-  emit('add-to-cart', product);
+  if (product.stock > 0) {
+    cartStore.add(product);
+    emit('product-added');
+  }
 };
+
+const handleBarcodeScan = () => {
+  const query = searchQuery.value.trim();
+  if (!query) return;
+
+  const allProducts = productStore.productsWithRealtimeStock;
+  const matchedProduct = allProducts.find(p => p.sku === query);
+
+  if (matchedProduct) {
+    if (matchedProduct.stock > 0) {
+      cartStore.add(matchedProduct);
+      searchQuery.value = ''; // Clear for next scan
+      emit('product-added');
+    } else {
+      toast.add({ severity: 'warn', summary: 'Out of Stock', detail: `Product "${matchedProduct.name}" is out of stock.`, life: 3000 });
+    }
+  } else {
+    toast.add({ severity: 'error', summary: 'Not Found', detail: `No product found with SKU "${query}".`, life: 3000 });
+  }
+};
+
 </script>
 
 <template>
-  <div class="card h-full flex flex-col">
-    <div class="p-4">
-      <IconField iconPosition="left" class="w-full">
+  <div class="bg-surface-0 dark:bg-surface-800 rounded-lg shadow-md h-full flex flex-col">
+    <div class="p-4 border-b border-surface-200">
+      <h2 class="text-xl font-bold">Products</h2>
+      <IconField iconPosition="left" class="w-full mt-4">
         <InputIcon class="pi pi-search" />
-        <InputText ref="searchInput" v-model="searchQuery" placeholder="Search products by name or SKU" fluid />
+        <InputText 
+          ref="searchInput" 
+          v-model="searchQuery" 
+          placeholder="Search or scan barcode..." 
+          class="w-full" 
+          @keydown.enter="handleBarcodeScan"
+        />
       </IconField>
     </div>
 
-    <div class="flex-grow overflow-auto">
-      <div v-if="!filteredProducts.length && !searchQuery" class="flex justify-center items-center h-full">
-        <ProgressSpinner />
-      </div>
-      <div v-else-if="filteredProducts.length > 0">
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-2">
-          <div v-for="product in filteredProducts" :key="product.id" class="p-2">
-            <Card class="h-full flex flex-col">
-              <template #header>
-                <div class="bg-surface-100 flex items-center justify-center h-40 rounded-t-lg">
-                  <i class="pi pi-image text-6xl text-surface-400"></i>
+    <DataView :value="filteredProducts" :layout="layout" paginator :rows="12" class="flex-grow overflow-hidden">
+        <template #header>
+            <div class="flex justify-end">
+               
+            </div>
+        </template>
+
+        <template #list="slotProps">
+            <div class="grid grid-cols-1 gap-2">
+                <div v-for="(item, index) in slotProps.items" :key="index" 
+                    @click="handleAddToCart(item)"
+                    :class="['flex p-3 items-center gap-4 transition-shadow duration-200 rounded-lg border', {
+                        'cursor-pointer hover:shadow-md': item.stock > 0,
+                        'opacity-50 cursor-not-allowed': item.stock <= 0
+                    }]"
+                >
+                    <div class="flex-1 flex flex-col gap-1">
+                        <div class="font-bold">{{ item.name }}</div>
+                        <div class="text-sm text-surface-500">SKU: {{ item.sku }}</div>
+                    </div>
+                    <div :class="['text-sm', {
+                        'text-red-500': item.stock < 10 && item.stock > 0,
+                        'text-green-500': item.stock >= 10,
+                        'text-red-600 font-bold': item.stock <= 0
+                    }]">
+                        {{ item.stock > 0 ? `${item.stock} in stock` : 'Out of Stock' }}
+                    </div>
+                    <div class="text-lg font-semibold">Rp{{ item.price }}</div>
                 </div>
-              </template>
-              <template #content>
-                <div class="flex flex-col flex-grow">
-                  <h5 class="text-lg font-bold">{{ product.name }}</h5>
-                  <p class="text-md line-clamp-1">{{ product.description }}</p>
-                  <p class="text-sm text-surface-500 mt-1">SKU: {{ product.sku }}</p>
-                  <div class="flex flex-col mt-auto">
-                    <span class="text-2xl font-semibold text-primary">Rp{{ product.price }}</span>
-                    <span v-if="product.stock > 0" :class="{'text-red-500': product.stock < 10, 'text-green-500': product.stock >= 10}" class="text-sm mt-1">
-                      Stock: {{ product.stock }}
-                    </span>
-                    <span v-else class="text-red-600 font-bold text-sm mt-1">
-                      Out of Stock
-                    </span>
-                  </div>
+            </div>
+        </template>
+
+        <template #grid="slotProps">
+            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div v-for="(item, index) in slotProps.items" :key="index"
+                    @click="handleAddToCart(item)"
+                    :class="['border rounded-lg p-3 flex flex-col text-center transition-shadow duration-200', {
+                        'cursor-pointer hover:shadow-lg hover:border-primary-500': item.stock > 0,
+                        'opacity-50 cursor-not-allowed': item.stock <= 0
+                    }]"
+                >
+                    <div class="font-semibold truncate">{{ item.name }}</div>
+                    <div class="text-xs text-surface-500">SKU: {{ item.sku }}</div>
+                    <div class="mt-4">
+                        <div class="font-bold text-lg">Rp{{ item.price }}</div>
+                        <div :class="['text-xs mt-1', {
+                            'text-red-500': item.stock < 10 && item.stock > 0,
+                            'text-green-500': item.stock >= 10,
+                            'text-red-600 font-bold': item.stock <= 0
+                        }]">
+                            {{ item.stock > 0 ? `${item.stock} in stock` : 'Out of Stock' }}
+                        </div>
+                    </div>
                 </div>
-              </template>
-              <template #footer>
-                <Button label="Add" icon="pi pi-plus" class="mt-4 w-full" @click="handleAddToCart(product)" :disabled="product.stock <= 0" />
-              </template>
-            </Card>
-          </div>
-        </div>
-      </div>
-      <div v-else class="p-4 text-center text-gray-500">
-        No products found.
-      </div>
-    </div>
+            </div>
+        </template>
+
+        <template #empty>
+            <div class="p-4 text-center text-surface-500 dark:text-surface-400">
+                <span v-if="!searchQuery">Belum ada produk.</span>
+                <span v-else>No products found matching your search.</span>
+            </div>
+        </template>
+    </DataView>
   </div>
 </template>

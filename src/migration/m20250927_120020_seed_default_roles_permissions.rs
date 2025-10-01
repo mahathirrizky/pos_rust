@@ -1,114 +1,195 @@
 #![allow(dead_code)]
-#![allow(dead_code)]
 use sea_orm_migration::prelude::*;
-use sea_orm::{ConnectionTrait, Statement, DbBackend};
+use sea_orm::{ConnectionTrait, Statement, DbBackend, FromQueryResult};
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
+
+async fn seed_permissions(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
+    let permissions = vec![
+        // Products & Inventory
+        ("products:create", "Can create products"),
+        ("products:read", "Can read products"),
+        ("products:update", "Can update products"),
+        ("products:delete", "Can delete products"),
+        ("categories:create", "Can create categories"),
+        ("categories:read", "Can read categories"),
+        ("categories:update", "Can update categories"),
+        ("categories:delete", "Can delete categories"),
+        ("inventory:read", "Can read inventory"),
+        ("inventory:update", "Can update inventory"),
+
+        // Sales & Orders
+        ("orders:create", "Can create orders/process sales"),
+        ("orders:read", "Can read orders"),
+        ("refunds:create", "Can create refunds"),
+        ("refunds:read", "Can read refunds"),
+
+        // Users & Roles
+        ("employees:create", "Can create employees"),
+        ("employees:read", "Can read employees"),
+        ("employees:update", "Can update employees"),
+        ("employees:delete", "Can delete employees"),
+        ("customers:create", "Can create customers"),
+        ("customers:read", "Can read customers"),
+        ("customers:update", "Can update customers"),
+        ("customers:delete", "Can delete customers"),
+        ("roles:create", "Can create roles"),
+        ("roles:read", "Can read roles"),
+        ("roles:update", "Can update roles"),
+        ("roles:delete", "Can delete roles"),
+        ("permissions:assign", "Can assign permissions to roles"),
+        ("permissions:read", "Can read permissions"),
+        ("permissions:create", "Can create permissions"),
+        ("permissions:update", "Can update permissions"),
+        ("permissions:delete", "Can delete permissions"),
+
+        // Miscellaneous
+        ("reports:read", "Can view reports"),
+        ("promotions:create", "Can create promotions"),
+        ("promotions:read", "Can read promotions"),
+        ("promotions:update", "Can update promotions"),
+        ("promotions:delete", "Can delete promotions"),
+        ("suppliers:create", "Can create suppliers"),
+        ("suppliers:read", "Can read suppliers"),
+        ("suppliers:update", "Can update suppliers"),
+        ("suppliers:delete", "Can delete suppliers"),
+        ("purchase_orders:create", "Can create purchase orders"),
+        ("purchase_orders:read", "Can read purchase orders"),
+        ("purchase_orders:update", "Can update purchase orders"),
+        ("purchase_orders:delete", "Can delete purchase orders"),
+        ("stores:create", "Can create stores"),
+        ("stores:read", "Can read stores"),
+        ("stores:update", "Can update stores"),
+        ("stores:delete", "Can delete stores"),
+    ];
+
+    for (name, description) in permissions {
+        let stmt = Statement::from_string(
+            DbBackend::MySql,
+            format!(
+                "INSERT IGNORE INTO permissions (name, description) VALUES ('{}', '{}');",
+                name, description
+            ),
+        );
+        manager.get_connection().execute(stmt).await?;
+    }
+    Ok(())
+}
+
+async fn assign_permissions_to_role(manager: &SchemaManager<'_>, role_name: &str, permissions: Vec<&str>) -> Result<(), DbErr> {
+    #[derive(FromQueryResult)]
+    struct IdWrapper { id: i32, }
+
+    let role_id: i32 = IdWrapper::find_by_statement(Statement::from_string(
+        DbBackend::MySql,
+        format!("SELECT id FROM roles WHERE name = '{}'", role_name),
+    ))
+    .one(manager.get_connection())
+    .await?
+    .unwrap()
+    .id;
+
+    for perm_name in permissions {
+        let perm_id: i32 = IdWrapper::find_by_statement(Statement::from_string(
+            DbBackend::MySql,
+            format!("SELECT id FROM permissions WHERE name = '{}'", perm_name),
+        ))
+        .one(manager.get_connection())
+        .await?
+        .unwrap()
+        .id;
+
+        let stmt = Statement::from_string(
+            DbBackend::MySql,
+            format!(
+                "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES ({}, {});",
+                role_id, perm_id
+            ),
+        );
+        manager.get_connection().execute(stmt).await?;
+    }
+    Ok(())
+}
+
 
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         // Seed initial roles
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO roles (name, description) VALUES ('Owner', 'System owner with full control');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO roles (name, description) VALUES ('Admin', 'Administrator with broad management capabilities');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO roles (name, description) VALUES ('StoreManager', 'Manages a specific store');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO roles (name, description) VALUES ('InventoryManager', 'Manages inventory for a store');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO roles (name, description) VALUES ('Cashier', 'Handles sales and customer transactions');")).await?;
+        let roles = vec![
+            ("Owner", "System owner with full control"),
+            ("Admin", "Administrator with broad management capabilities"),
+            ("StoreManager", "Manages a specific store"),
+            ("InventoryManager", "Manages inventory for a store"),
+            ("Cashier", "Handles sales and customer transactions"),
+        ];
+        for (name, description) in roles {
+            let stmt = Statement::from_string(
+                DbBackend::MySql,
+                format!(
+                    "INSERT IGNORE INTO roles (name, description) VALUES ('{}', '{}');",
+                    name, description
+                ),
+            );
+            manager.get_connection().execute(stmt).await?;
+        }
 
         // Seed initial permissions
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO permissions (name, description) VALUES ('manage_employees', 'Can create, update, and delete employees');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO permissions (name, description) VALUES ('view_reports', 'Can view various business reports');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO permissions (name, description) VALUES ('manage_products', 'Can create, update, and delete products');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO permissions (name, description) VALUES ('manage_inventory', 'Can manage inventory levels and stock');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO permissions (name, description) VALUES ('process_sales', 'Can process sales transactions');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO permissions (name, description) VALUES ('view_promotions', 'Can view promotions');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO permissions (name, description) VALUES ('create_promotions', 'Can create promotions');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO permissions (name, description) VALUES ('update_promotions', 'Can update promotions');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO permissions (name, description) VALUES ('delete_promotions', 'Can delete promotions');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO permissions (name, description) VALUES ('manage_refunds', 'Can process customer refunds');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO permissions (name, description) VALUES ('manage_suppliers', 'Can manage supplier information');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO permissions (name, description) VALUES ('manage_purchase_orders', 'Can create and manage purchase orders');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO permissions (name, description) VALUES ('manage_stores', 'Can create, update, and delete stores');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO permissions (name, description) VALUES ('manage_categories', 'Can create, update, and delete product categories');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO permissions (name, description) VALUES ('manage_customers', 'Can create, update, and delete customer information');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO permissions (name, description) VALUES ('manage_roles', 'Can create, read, update, and delete roles');")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "INSERT IGNORE INTO permissions (name, description) VALUES ('manage_permissions', 'Can assign and remove permissions from roles');")).await?;
+        seed_permissions(manager).await?;
 
-        // Seed initial role permissions
-        let owner_id: i32 = manager.get_connection().query_one(Statement::from_string(DbBackend::MySql, "SELECT id FROM roles WHERE name = 'Owner'")).await?.unwrap().try_get("", "id")?;
-        let admin_id: i32 = manager.get_connection().query_one(Statement::from_string(DbBackend::MySql, "SELECT id FROM roles WHERE name = 'Admin'")).await?.unwrap().try_get("", "id")?;
-        let store_manager_id: i32 = manager.get_connection().query_one(Statement::from_string(DbBackend::MySql, "SELECT id FROM roles WHERE name = 'StoreManager'")).await?.unwrap().try_get("", "id")?;
-        let cashier_id: i32 = manager.get_connection().query_one(Statement::from_string(DbBackend::MySql, "SELECT id FROM roles WHERE name = 'Cashier'")).await?.unwrap().try_get("", "id")?;
+        // --- Assign permissions to roles ---
 
-        let all_permissions: Vec<i32> = manager.get_connection().query_all(Statement::from_string(DbBackend::MySql, "SELECT id FROM permissions")).await?.into_iter().map(|row| row.try_get("", "id").unwrap()).collect();
-        for perm_id in &all_permissions {
-            manager.get_connection().execute(Statement::from_string(DbBackend::MySql, &format!("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES ({}, {});", owner_id, perm_id))).await?;
-        }
+        // Owner gets all permissions
+        let all_permissions_query = "SELECT name FROM permissions";
+        let all_permission_names: Vec<String> = manager.get_connection()
+            .query_all(Statement::from_string(DbBackend::MySql, all_permissions_query))
+            .await?
+            .into_iter()
+            .map(|row| row.try_get("", "name").unwrap())
+            .collect();
+        assign_permissions_to_role(manager, "Owner", all_permission_names.iter().map(|s| s.as_str()).collect()).await?;
+        
+        // Admin gets most permissions
+        assign_permissions_to_role(manager, "Admin", all_permission_names.iter().map(|s| s.as_str()).collect()).await?;
 
-        // Assign specific permissions to Admin
-        let admin_permissions = vec![
-            "manage_employees", "view_reports", "manage_products", "manage_inventory",
-            "process_sales", "view_promotions", "create_promotions", "update_promotions", "delete_promotions",
-            "manage_refunds", "manage_suppliers", "manage_purchase_orders", "manage_stores",
-            "manage_categories", "manage_customers", "manage_roles", "manage_permissions"
-        ];
-        for perm_name in admin_permissions {
-            let perm_id: i32 = manager.get_connection().query_one(Statement::from_string(DbBackend::MySql, &format!("SELECT id FROM permissions WHERE name = '{}'", perm_name))).await?.unwrap().try_get("", "id")?;
-            manager.get_connection().execute(Statement::from_string(DbBackend::MySql, &format!("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES ({}, {});", admin_id, perm_id))).await?;
-        }
 
-        // Assign specific permissions to StoreManager
+        // StoreManager permissions
         let store_manager_permissions = vec![
-            "view_reports", "manage_products", "manage_inventory", "process_sales",
-            "view_promotions", "update_promotions", "manage_refunds", "manage_suppliers",
-            "manage_purchase_orders", "manage_employees", "manage_customers"
+            "reports:read", "products:create", "products:read", "products:update", "products:delete",
+            "inventory:read", "inventory:update", "orders:create", "orders:read", "refunds:create", "refunds:read",
+            "suppliers:create", "suppliers:read", "suppliers:update", "suppliers:delete",
+            "purchase_orders:create", "purchase_orders:read", "purchase_orders:update", "purchase_orders:delete",
+            "employees:create", "employees:read", "employees:update", "employees:delete",
+            "customers:create", "customers:read", "customers:update", "customers:delete",
+            "promotions:create", "promotions:read", "promotions:update", "promotions:delete",
+            "categories:read",
         ];
-        for perm_name in store_manager_permissions {
-            let perm_id: i32 = manager.get_connection().query_one(Statement::from_string(DbBackend::MySql, &format!("SELECT id FROM permissions WHERE name = '{}'", perm_name))).await?.unwrap().try_get("", "id")?;
-            manager.get_connection().execute(Statement::from_string(DbBackend::MySql, &format!("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES ({}, {});", store_manager_id, perm_id))).await?;
-        }
+        assign_permissions_to_role(manager, "StoreManager", store_manager_permissions).await?;
 
-        // Assign specific permissions to Cashier
-        let cashier_permissions = vec![
-            "process_sales", "view_promotions", "view_reports", "manage_customers"
+        // InventoryManager permissions
+        let inventory_manager_permissions = vec![
+            "products:read", "inventory:read", "inventory:update", "suppliers:read",
+            "purchase_orders:create", "purchase_orders:read", "categories:read",
         ];
-        for perm_name in cashier_permissions {
-            let perm_id: i32 = manager.get_connection().query_one(Statement::from_string(DbBackend::MySql, &format!("SELECT id FROM permissions WHERE name = '{}'", perm_name))).await?.unwrap().try_get("", "id")?;
-            manager.get_connection().execute(Statement::from_string(DbBackend::MySql, &format!("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES ({}, {});", cashier_id, perm_id))).await?;
-        }
+        assign_permissions_to_role(manager, "InventoryManager", inventory_manager_permissions).await?;
+
+        // Cashier permissions
+        let cashier_permissions = vec![
+            "orders:create", "orders:read", "promotions:read", "reports:read",
+            "customers:create", "customers:read", "customers:update", "products:read",
+        ];
+        assign_permissions_to_role(manager, "Cashier", cashier_permissions).await?;
 
         Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // Delete seeded roles and permissions
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "DELETE FROM role_permissions;")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "DELETE FROM permissions;")).await?;
-        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "DELETE FROM roles;")).await?;
+        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "SET FOREIGN_KEY_CHECKS = 0;")).await?;
+        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "TRUNCATE TABLE role_permissions;")).await?;
+        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "TRUNCATE TABLE permissions;")).await?;
+        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "TRUNCATE TABLE roles;")).await?;
+        manager.get_connection().execute(Statement::from_string(DbBackend::MySql, "SET FOREIGN_KEY_CHECKS = 1;")).await?;
         Ok(())
     }
-}
-
-#[derive(DeriveIden)]
-enum Roles {
-    Table,
-    Id,
-    Name,
-    Description,
-}
-
-#[derive(DeriveIden)]
-enum Permissions {
-    Table,
-    Id,
-    Name,
-    Description,
-}
-
-#[derive(DeriveIden)]
-enum RolePermissions {
-    Table,
-    RoleId,
-    PermissionId,
 }

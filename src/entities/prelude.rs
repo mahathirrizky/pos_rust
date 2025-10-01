@@ -19,3 +19,4 @@ pub use super::role_permissions::Entity as RolePermissions;
 pub use super::roles::Entity as Roles;
 pub use super::stores::Entity as Stores;
 pub use super::suppliers::Entity as Suppliers;
+pub use super::password_reset_tokens::Entity as PasswordResetTokens;

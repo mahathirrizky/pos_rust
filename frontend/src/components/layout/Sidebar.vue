@@ -52,19 +52,19 @@ const menu = [
   { to: '/admin/employees', icon: 'pi pi-users', tooltip: 'Employees', roles: ['Admin'] },
   { to: '/admin/promotions', icon: 'pi pi-gift', tooltip: 'Promotions', roles: ['Admin'] },
   { to: '/admin/refunds', icon: 'pi pi-replay', tooltip: 'Refunds', roles: ['Admin'] },
-  { to: '/admin/roles', icon: 'pi pi-key', tooltip: 'Role Management', roles: ['Admin', 'Owner'] },
 
   // Owner Links
   { to: '/owner', icon: 'pi pi-briefcase', tooltip: 'Owner Dashboard', roles: ['Owner'] },
-  { to: '/owner/stores', icon: 'pi pi-building', tooltip: 'Manage Stores', roles: ['Owner'] },
   { to: '/owner/admin-users', icon: 'pi pi-user-plus', tooltip: 'Manage Admin Users', roles: ['Owner'] },
-  { to: '/owner/settings', icon: 'pi pi-cog', tooltip: 'Settings', roles: ['Owner'] },
-  { to: '/owner/inventory', icon: 'pi pi-box', tooltip: 'Inventory', roles: ['Owner'] },
+  { to: '/owner/employees', icon: 'pi pi-users', tooltip: 'Employees', roles: ['Owner'] },
+  { to: '/owner/stores', icon: 'pi pi-building', tooltip: 'Manage Stores', roles: ['Owner'] },
+  { to: '/admin/roles', icon: 'pi pi-key', tooltip: 'Role Management', roles: ['Admin', 'Owner'] }, // Moved from Admin section
   { to: '/owner/products', icon: 'pi pi-tag', tooltip: 'Products', roles: ['Owner'] },
+  { to: '/owner/inventory', icon: 'pi pi-box', tooltip: 'Inventory', roles: ['Owner'] },
   { to: '/owner/suppliers', icon: 'pi pi-truck', tooltip: 'Suppliers', roles: ['Owner'] },
   { to: '/owner/purchase-orders', icon: 'pi pi-shopping-cart', tooltip: 'Purchase Orders', roles: ['Owner'] },
   { to: '/owner/reports', icon: 'pi pi-chart-bar', tooltip: 'Reports', roles: ['Owner'] },
-  { to: '/owner/employees', icon: 'pi pi-users', tooltip: 'Employees', roles: ['Owner'] },
+  { to: '/owner/settings', icon: 'pi pi-cog', tooltip: 'Settings', roles: ['Owner'] },
 
   
 ];
@@ -89,7 +89,7 @@ const handleLogout = () => {
 </script>
 
 <template>
-  <div class="flex flex-col h-screen px-2 py-2 bg-gray-100 shadow-lg w-[90px] flex-shrink-0">
+  <div class="flex flex-col h-screen px-2 py-2 bg-surface-50 dark:bg-surface-800 shadow-lg w-[90px] flex-shrink-0">
     <!-- Logo or App Name -->
     <div class="flex items-center justify-center mb-6 pt-2">
       <span class="pi pi-prime text-3xl text-primary"></span>
@@ -99,7 +99,7 @@ const handleLogout = () => {
     <ul class="flex-grow overflow-y-auto pr-2">
       <li v-for="item in filteredMenu" :key="item.to" class="my-4 flex justify-center">
         <router-link :to="item.to" v-tooltip.right="item.tooltip"
-          class="flex items-center justify-center w-16 h-16 rounded-lg text-gray-600 hover:bg-primary-100 hover:text-primary transition-colors duration-200"
+          class="flex items-center justify-center w-16 h-16 rounded-lg text-surface-600 dark:text-surface-300 hover:bg-primary-100 hover:text-primary transition-colors duration-200"
           active-class="bg-primary-500 text-white"
           exact-active-class="bg-primary-500 text-white">
           <i :class="item.icon" class="text-3xl"></i>

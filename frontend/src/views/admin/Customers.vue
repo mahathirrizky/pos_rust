@@ -140,9 +140,9 @@ const getInitials = (firstName, lastName) => {
         >
           <template #empty>
             <div class="text-center py-8">
-              <i class="pi pi-users text-4xl text-gray-400 mb-2"></i>
-              <h3 class="text-xl font-semibold text-gray-600">No Customers Found</h3>
-              <p class="text-gray-500">Click the "New" button to add a customer.</p>
+              <i class="pi pi-users text-4xl text-surface-400 dark:text-surface-500 mb-2"></i>
+              <h3 class="text-xl font-semibold text-surface-600 dark:text-surface-300">No Customers Found</h3>
+              <p class="text-surface-500 dark:text-surface-400">Click the "New" button to add a customer.</p>
             </div>
           </template>
 
@@ -153,7 +153,7 @@ const getInitials = (firstName, lastName) => {
                 <Avatar :label="getInitials(slotProps.data.first_name, slotProps.data.last_name)" class="mr-3" shape="circle" size="large" />
                 <div>
                   <div class="font-semibold">{{ slotProps.data.first_name }} {{ slotProps.data.last_name }}</div>
-                  <div class="text-sm text-gray-500">{{ slotProps.data.email }}</div>
+                  <div class="text-sm text-surface-500 dark:text-surface-400">{{ slotProps.data.email }}</div>
                 </div>
               </div>
             </template>
@@ -168,7 +168,7 @@ const getInitials = (firstName, lastName) => {
           <Column headerStyle="width: 10rem; text-align: center" bodyStyle="text-align: center">
              <template #body="slotProps">
                 <Button icon="pi pi-pencil" class="mr-2" severity="success" rounded @click="editCustomer(slotProps.data)" v-tooltip.top="'Edit'" />
-                <Button icon="pi pi-trash" severity="warning" rounded @click="confirmDeleteCustomer(slotProps.data)" v-tooltip.top="'Delete'" />
+                <Button icon="pi pi-trash" severity="danger" rounded @click="confirmDeleteCustomer(slotProps.data)" v-tooltip.top="'Delete'" />
             </template>
           </Column>
         </DataTable>

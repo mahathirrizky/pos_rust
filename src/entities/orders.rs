@@ -102,6 +102,7 @@ pub struct CreateOrderItemPayload {
 pub struct CreateOrderPayload {
     pub customer_id: i32,
     pub items: Vec<CreateOrderItemPayload>,
+    pub payment_method: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

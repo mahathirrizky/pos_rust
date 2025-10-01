@@ -9,6 +9,7 @@ export const useInventoryStore = defineStore('inventory', () => {
   const inventory = ref([]);
   const stores = ref([]);
   const inventoryReport = ref(null);
+  const loading = ref(false);
 
   // WEBSOCKET
   // Assuming the backend runs on port 8000
@@ -20,6 +21,7 @@ export const useInventoryStore = defineStore('inventory', () => {
 
   async function fetchInventory() {
     if (!authStore.token) return;
+    loading.value = true;
     try {
       const response = await axios.get('/api/inventory', {
         headers: { Authorization: `Bearer ${authStore.token}` },
@@ -27,6 +29,8 @@ export const useInventoryStore = defineStore('inventory', () => {
       inventory.value = response.data.data;
     } catch (error) {
       console.error('Error fetching inventory:', error);
+    } finally {
+      loading.value = false;
     }
   }
 
@@ -101,6 +105,7 @@ export const useInventoryStore = defineStore('inventory', () => {
     inventory,
     stores,
     inventoryReport,
+    loading,
     fetchInventory,
     fetchStores,
     adjustInventory,
@@ -108,3 +113,4 @@ export const useInventoryStore = defineStore('inventory', () => {
     updateInventoryItem,
   };
 });
+""

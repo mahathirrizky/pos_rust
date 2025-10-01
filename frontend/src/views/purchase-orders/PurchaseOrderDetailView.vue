@@ -136,7 +136,7 @@ const formatCurrency = (value) => {
     if (typeof value !== 'number') {
         value = parseFloat(value);
     }
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(value);
 };
 
 const formatDate = (value) => {
@@ -187,7 +187,7 @@ const formatDate = (value) => {
 
       <div class="flex justify-between items-center mb-4">
         <h3 class="text-xl font-semibold">Items</h3>
-        <Button v-if="canWrite && po.purchase_order.status === 'draft'" label="Add Item" icon="pi pi-plus" @click="openNewItemDialog" />
+        <Button v-if="canWrite && po.purchase_order.status === 'draft'" label="Add Item" icon="pi pi-plus" severity="success" @click="openNewItemDialog" />
       </div>
       <DataTable :value="po.items" responsiveLayout="scroll">
         <Column field="product.name" header="Product"></Column>
@@ -229,7 +229,7 @@ const formatDate = (value) => {
     </div>
     <template #footer>
         <Button label="Cancel" icon="pi pi-times" text @click="hideItemDialog"/>
-        <Button label="Save" icon="pi pi-check" text @click="saveItem" />
+        <Button label="Save" icon="pi pi-check" text severity="success" @click="saveItem" />
     </template>
   </Dialog>
 
@@ -246,7 +246,7 @@ const formatDate = (value) => {
     </DataTable>
     <template #footer>
         <Button label="Cancel" icon="pi pi-times" text @click="receiveDialog = false"/>
-        <Button label="Submit Received Stock" icon="pi pi-check" text @click="submitReceiveStock" />
+        <Button label="Submit Received Stock" icon="pi pi-check" text severity="success" @click="submitReceiveStock" />
     </template>
   </Dialog>
 </template>

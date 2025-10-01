@@ -136,9 +136,9 @@ const formatDate = (value) => {
         >
           <template #empty>
             <div class="text-center py-8">
-              <i class="pi pi-sitemap text-4xl text-gray-400 mb-2"></i>
-              <h3 class="text-xl font-semibold text-gray-600">No Categories Found</h3>
-              <p class="text-gray-500">Click the "New" button to add a category.</p>
+              <i class="pi pi-sitemap text-4xl text-surface-400 dark:text-surface-500 mb-2"></i>
+              <h3 class="text-xl font-semibold text-surface-600 dark:text-surface-300">No Categories Found</h3>
+              <p class="text-surface-500 dark:text-surface-400">Click the "New" button to add a category.</p>
             </div>
           </template>
 
@@ -162,7 +162,7 @@ const formatDate = (value) => {
           <Column headerStyle="width: 10rem; text-align: center" bodyStyle="text-align: center">
              <template #body="slotProps">
                 <Button icon="pi pi-pencil" class="mr-2" severity="success" rounded @click="editCategory(slotProps.data)" v-tooltip.top="'Edit'" />
-                <Button icon="pi pi-trash" severity="warning" rounded @click="confirmDeleteCategory(slotProps.data)" v-tooltip.top="'Delete'" />
+                <Button icon="pi pi-trash" severity="danger" rounded @click="confirmDeleteCategory(slotProps.data)" v-tooltip.top="'Delete'" />
             </template>
           </Column>
         </DataTable>

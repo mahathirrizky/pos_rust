@@ -26,7 +26,7 @@ onMounted(() => {
 });
 
 const openNew = () => {
-  adminUser.value = { role: 'Admin' };
+  adminUser.value = {};
   submitted.value = false;
   adminUserDialog.value = true;
 };
@@ -48,8 +48,9 @@ const saveAdminUser = async () => {
   }
 
   try {
-    await employeeStore.saveEmployee(adminUser.value);
     const isUpdate = !!adminUser.value.id;
+    await employeeStore.saveEmployee(adminUser.value);
+    
     toast.add({ severity: 'success', summary: 'Success', detail: `Admin user ${isUpdate ? 'updated' : 'created'} successfully.`, life: 3000 });
     adminUserDialog.value = false;
     employeeStore.fetchEmployees({ role: 'Admin' });

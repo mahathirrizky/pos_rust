@@ -37,5 +37,22 @@ export const useAuthStore = defineStore('auth', {
       localStorage.removeItem('token');
       localStorage.removeItem('permissions');
     },
+    async setPassword(token, new_password) {
+      try {
+        await axios.post('/api/auth/set-password', { token, new_password });
+      } catch (error) {
+        console.error('Error setting password:', error);
+        throw error;
+      }
+    },
+    async forgotPassword(email) {
+      try {
+        await axios.post('/api/auth/forgot-password', { email });
+      } catch (error) {
+        // We intentionally swallow the error on the client side 
+        // to prevent attackers from knowing if an email address is registered.
+        console.error('Forgot password request failed, but we are hiding the error from the user.', error);
+      }
+    },
   },
 });

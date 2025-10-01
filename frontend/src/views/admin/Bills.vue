@@ -46,7 +46,7 @@ const viewBillDetails = (bill) => {
 };
 
 const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(value);
 };
 
 const formatDate = (value) => {
@@ -81,9 +81,9 @@ const clearFilters = () => {
         <Toolbar class="mb-4">
           <template #start>
             <div class="flex items-center gap-2">
-                <DatePicker v-model="filterDate" placeholder="Filter by Date" dateFormat="mm/dd/yy" class="w-full md:w-20rem" />
-                <Select v-model="filterStatus" :options="statuses" placeholder="Filter by Status" class="w-full md:w-14rem" />
-                <Button icon="pi pi-filter-slash" label="Clear" outlined @click="clearFilters" />
+                <DatePicker v-model="filterDate" placeholder="Filter by Date" dateFormat="mm/dd/yy" class="md:w-20rem" />
+                <Select v-model="filterStatus" :options="statuses" placeholder="Filter by Status" class="md:w-14rem" />
+                <Button icon="pi pi-filter-slash" label="Clear" severity="secondary" outlined @click="clearFilters" />
             </div>
           </template>
         </Toolbar>
@@ -91,9 +91,9 @@ const clearFilters = () => {
         <DataTable :value="filteredBills" responsiveLayout="scroll" paginator :rows="10">
           <template #empty>
             <div class="text-center py-8">
-                <i class="pi pi-file text-4xl text-gray-400 mb-2"></i>
-                <h3 class="text-xl font-semibold text-gray-600">No Bills Found</h3>
-                <p class="text-gray-500">There are no bills matching the current filters.</p>
+                <i class="pi pi-file text-4xl text-surface-400 dark:text-surface-500 mb-2"></i>
+                <h3 class="text-xl font-semibold text-surface-600 dark:text-surface-300">No Bills Found</h3>
+                <p class="text-surface-500 dark:text-surface-400">There are no bills matching the current filters.</p>
             </div>
           </template>
 

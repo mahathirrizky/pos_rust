@@ -1,5 +1,6 @@
 use sea_orm::{DatabaseConnection, DbErr, EntityTrait, ActiveModelTrait, ActiveValue};
 use crate::entities::suppliers;
+use chrono::{Utc, DateTime};
 
 pub struct SupplierRepository;
 
@@ -9,12 +10,15 @@ impl SupplierRepository {
     }
 
     pub async fn create(db: &DatabaseConnection, new_supplier: suppliers::CreateSupplier) -> Result<suppliers::Model, DbErr> {
+        let now: DateTime<Utc> = Utc::now();
         let supplier = suppliers::ActiveModel {
             name: ActiveValue::Set(new_supplier.name),
             contact_person: ActiveValue::Set(new_supplier.contact_person),
             email: ActiveValue::Set(new_supplier.email),
             phone: ActiveValue::Set(new_supplier.phone),
             address: ActiveValue::Set(new_supplier.address),
+            created_at: ActiveValue::Set(now),
+            updated_at: ActiveValue::Set(now),
             ..Default::default()
         };
         supplier.insert(db).await
@@ -43,6 +47,7 @@ impl SupplierRepository {
             if let Some(address) = update_data.address {
                 active_model.address = ActiveValue::Set(Some(address));
             }
+            active_model.updated_at = ActiveValue::Set(Utc::now());
             Ok(Some(active_model.update(db).await?))
         } else {
             Ok(None)

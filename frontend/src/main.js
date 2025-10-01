@@ -20,18 +20,41 @@ import './style.css';
 const MyPreset = definePreset(Lara, {
   semantic: {
     primary: {
-      50: '{green.50}',
-      100: '{green.100}',
-      200: '{green.200}',
-      300: '{green.300}',
-      400: '{green.400}',
-      500: '{green.500}',
-      600: '{green.600}',
-      700: '{green.700}',
-      800: '{green.800}',
-      900: '{green.900}',
-      950: '{green.950}',
+      50: '{blue.50}',
+      100: '{blue.100}',
+      200: '{blue.200}',
+      300: '{blue.300}',
+      400: '{blue.400}',
+      500: '{blue.500}',
+      600: '{blue.600}',
+      700: '{blue.700}',
+      800: '{blue.800}',
+      900: '{blue.900}',
+      950: '{blue.950}',
     },
+    surface: {
+      0: '{bluegray.50}', // Light mode base background
+      50: '{bluegray.100}',
+      100: '{bluegray.200}',
+      200: '{bluegray.300}',
+      300: '{bluegray.400}',
+      400: '{bluegray.500}',
+      500: '{bluegray.600}',
+      600: '{bluegray.700}',
+      700: '{bluegray.800}',
+      800: '{bluegray.900}', // Dark mode base background
+      900: '{bluegray.950}',
+      950: '{bluegray.950}',
+    },
+    text: {
+      color: '{bluegray.800}',
+      'color-secondary': '{bluegray.600}',
+      'color-muted': '{bluegray.400}',
+    },
+    border: {
+      color: '{bluegray.200}',
+      'color-light': '{bluegray.100}',
+    }
   },
 });
 
@@ -43,7 +66,7 @@ app.use(PrimeVue, {
     theme: {
         preset: MyPreset,
         options: {
-            darkModeSelector: 'disable-dark-mode',
+            darkModeSelector: '.dark',
             cssLayer: {
               name: "primevue",
               order: "theme, base, primevue",

@@ -1,6 +1,6 @@
 <template>
-  <div class="flex items-center justify-center min-h-screen bg-gray-100">
-    <div class="w-full px-8 py-6 mt-4 text-left bg-white shadow-lg md:w-1/3">
+  <div class="flex items-center justify-center min-h-screen bg-surface-100 dark:bg-surface-900">
+    <div class="w-full px-8 py-6 mt-4 text-left bg-surface-0 dark:bg-surface-800 shadow-lg md:w-1/3">
       <h3 class="text-2xl font-bold text-center">Login to {{ formattedRole }} Account</h3>
       <form @submit.prevent="handleLogin" class="p-fluid">
         <div class="mt-4 mb-4">

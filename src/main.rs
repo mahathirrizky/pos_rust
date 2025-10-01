@@ -23,7 +23,11 @@ use crate::websocket::broadcaster::Broadcaster;
 use crate::websocket::start_ws_connection;
 
 use crate::auth::auth_handler::login;
-use crate::middleware::role::RoleMiddlewareFactory;
+
+pub struct AppState {
+    pub db: DatabaseConnection,
+    pub broadcaster: actix::Addr<Broadcaster>,
+}
 
 async fn index(_req: HttpRequest) -> Result<NamedFile> {
     Ok(NamedFile::open("./frontend/dist/index.html")?)
@@ -39,11 +43,16 @@ async fn main() -> std::io::Result<()> {
 
     migration::Migrator::up(&db, None).await.expect("Failed to run migrations");
 
+    // Ensure upload directories exist
+    std::fs::create_dir_all("./uploads/products")
+        .expect("Failed to create uploads/products directory");
+    std::fs::create_dir_all("./uploads/employees")
+        .expect("Failed to create uploads/employees directory");
+
     // Mulai Broadcaster Actor
     let broadcaster = Broadcaster::default().start();
 
-    let db_data = web::Data::new(db);
-    let broadcaster_data = web::Data::new(broadcaster);
+    let app_state = web::Data::new(AppState { db: db.clone(), broadcaster: broadcaster.clone() });
 
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -55,12 +64,10 @@ async fn main() -> std::io::Result<()> {
 
         App::new()
             .wrap(cors)
-            .app_data(db_data.clone())
-            .app_data(broadcaster_data.clone()) // <-- Tambahkan state broadcaster
+            .app_data(app_state.clone())
             .service(web::scope("/api/auth").route("/login", web::post().to(login)))
             .service(
                 web::scope("/api")
-                    .wrap(RoleMiddlewareFactory { allowed_roles: vec![] })
                     .configure(routes::configure_routes)
             )
             
@@ -69,6 +76,8 @@ async fn main() -> std::io::Result<()> {
 
             // Static assets
             .service(Files::new("/assets", "./frontend/dist/assets"))
+            .service(Files::new("/uploads/products", "./uploads/products")) 
+            .service(Files::new("/uploads/employees", "./uploads/employees"))
             .route("/vite.svg", web::get().to(|| async { NamedFile::open_async("./frontend/dist/vite.svg").await }))
 
             // SPA routes (should be last)

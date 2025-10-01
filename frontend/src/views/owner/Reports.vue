@@ -65,7 +65,7 @@ watch([dateRange, selectedStore], fetchReports, { deep: true });
 
 const formatCurrency = (value) => {
   if (typeof value !== 'number') return '';
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(value);
 };
 
 const salesChartData = computed(() => {
@@ -119,25 +119,25 @@ const chartOptions = ref({
     plugins: {
         legend: {
             labels: {
-                color: '#495057'
+                color: 'var(--text-color-secondary)'
             }
         }
     },
     scales: {
         x: {
             ticks: {
-                color: '#495057'
+                color: 'var(--text-color-secondary)'
             },
             grid: {
-                color: '#ebedef'
+                color: 'var(--surface-border)'
             }
         },
         y: {
             ticks: {
-                color: '#495057'
+                color: 'var(--text-color-secondary)'
             },
             grid: {
-                color: '#ebedef'
+                color: 'var(--surface-border)'
             }
         }
     }
@@ -153,18 +153,18 @@ const barChartOptions = ref({
         y: {
             beginAtZero: true,
             ticks: {
-                color: '#495057'
+                color: 'var(--text-color-secondary)'
             },
             grid: {
-                color: '#ebedef'
+                color: 'var(--surface-border)'
             }
         },
         x: {
             ticks: {
-                color: '#495057'
+                color: 'var(--text-color-secondary)'
             },
             grid: {
-                color: '#ebedef'
+                color: 'var(--surface-border)'
             }
         }
     }
@@ -180,7 +180,7 @@ const barChartOptions = ref({
       </template>
       <template #content>
         <!-- Filters -->
-        <div class="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+        <div class="flex flex-wrap gap-4 mb-6 p-4 bg-surface-50 dark:bg-surface-800 rounded-lg">
           <div class="flex-auto">
             <label for="dr" class="font-bold block mb-2"> Date Range </label>
             <DatePicker v-model="dateRange" selectionMode="range" :manualInput="false" showIcon inputId="dr" class="w-full"/>
@@ -237,9 +237,9 @@ const barChartOptions = ref({
         </div>
         
         <!-- No Data Message -->
-        <div v-else class="text-center py-8 bg-gray-50 rounded-lg">
-            <i class="pi pi-info-circle text-4xl text-gray-400"></i>
-            <p class="text-lg mt-2 text-gray-600">No data available for the selected filters.</p>
+        <div v-else class="text-center py-8 bg-surface-50 dark:bg-surface-800 rounded-lg">
+            <i class="pi pi-info-circle text-4xl text-surface-400 dark:text-surface-500"></i>
+            <p class="text-lg mt-2 text-surface-600 dark:text-surface-300">No data available for the selected filters.</p>
         </div>
 
       </template>

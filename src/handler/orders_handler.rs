@@ -2,13 +2,14 @@ use crate::repository::orders_repository::OrderRepository;
 use actix_web::{web, HttpResponse, Responder};
 use crate::helper::response::{ApiResponse, ApiError};
 use crate::entities::orders::{CreateOrderPayload, UpdateOrder};
-use sea_orm::{DatabaseConnection, TransactionTrait, prelude::Decimal, ActiveValue};
+use sea_orm::{DatabaseConnection, TransactionTrait, prelude::Decimal, ActiveValue, ActiveModelTrait};
 use crate::extractor::claims_extractor::ClaimsExtractor;
 use crate::guard::order_guard::OrderAccessGuard;
 use crate::repository::products_repository::ProductRepository;
 use crate::repository::promotions_repository::PromotionRepository;
 use crate::repository::inventory_repository::InventoryRepository;
-use crate::entities::{order_items, promotions, products, employees};
+use crate::repository::payments_repository::PaymentRepository;
+use crate::entities::{order_items, promotions, products, employees, payments, orders};
 use std::collections::HashMap;
 use chrono::Utc;
 use crate::entities::orders::{SalesReport, ProductSalesReport, EmployeeSalesReport, SalesReportQueryParams};
@@ -32,11 +33,16 @@ pub async fn get_all_orders(claims: ClaimsExtractor, db: web::Data<DatabaseConne
         } else {
             HttpResponse::Forbidden().json(ApiError::new("StoreManager has no assigned store".to_string()))
         }
-    } else {
-        // Cashier can view orders they created
-        match OrderRepository::get_all_by_employee(db.get_ref(), claims.0.sub).await { 
-            Ok(orders) => HttpResponse::Ok().json(ApiResponse::new(orders)),
-            Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to fetch orders".to_string())),
+    } else { // Cashier and other roles
+        if let Some(store_id) = claims.0.store_id {
+            match OrderRepository::get_all_by_employee_and_store(db.get_ref(), claims.0.sub, store_id).await {
+                Ok(orders) => HttpResponse::Ok().json(ApiResponse::new(orders)),
+                Err(_) => HttpResponse::InternalServerError().json(ApiError::new("Failed to fetch orders for cashier in store".to_string())),
+            }
+        } else {
+            // Fallback for users with roles other than Admin/StoreManager who might not have a store_id
+            // Or if a cashier somehow doesn't have a store_id in their token
+            HttpResponse::Forbidden().json(ApiError::new("User is not assigned to a store session".to_string()))
         }
     }
 }
@@ -150,12 +156,33 @@ pub async fn create_order(
         Err(e) => return HttpResponse::InternalServerError().json(ApiError::new(format!("Failed to create order: {}", e))),
     };
 
+    // Create the payment
+    let payment_to_create = payments::CreatePayment {
+        order_id: order.id,
+        payment_method: new_order_payload.payment_method.clone(),
+        amount: order.total_amount, // Assuming amount paid is the total amount for now
+        payment_date: Utc::now(),
+        status: "Completed".to_string(),
+    };
+
+    if let Err(e) = PaymentRepository::create_in_txn(&txn, payment_to_create).await {
+        return HttpResponse::InternalServerError().json(ApiError::new(format!("Failed to create payment: {}", e)));
+    }
+
+    // Update the order status
+    let mut order_active_model: orders::ActiveModel = order.into();
+    order_active_model.status = ActiveValue::Set("Completed".to_string());
+    let updated_order = match order_active_model.update(&txn).await {
+        Ok(o) => o,
+        Err(e) => return HttpResponse::InternalServerError().json(ApiError::new(format!("Failed to update order status: {}", e))),
+    };
+
     // Commit transaction
     if let Err(e) = txn.commit().await {
         return HttpResponse::InternalServerError().json(ApiError::new(format!("Failed to commit transaction: {}", e)));
     }
 
-    HttpResponse::Ok().json(ApiResponse::new(order))
+    HttpResponse::Ok().json(ApiResponse::new(updated_order))
 }
 
 pub async fn get_order_by_id(guard: OrderAccessGuard) -> impl Responder {

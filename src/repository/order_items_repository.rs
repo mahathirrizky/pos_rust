@@ -1,5 +1,6 @@
 use sea_orm::{DbErr, EntityTrait, ActiveModelTrait, ActiveValue, ColumnTrait, QueryFilter, JoinType, QuerySelect, RelationTrait, ConnectionTrait};
 use crate::entities::{order_items, orders};
+use chrono::Utc;
 
 pub struct OrderItemRepository;
 
@@ -53,6 +54,7 @@ impl OrderItemRepository {
             if let Some(unit_price) = update_data.unit_price {
                 active_model.unit_price = ActiveValue::Set(unit_price);
             }
+            active_model.updated_at = ActiveValue::Set(Utc::now());
             Ok(Some(active_model.update(db).await?))
         } else {
             Ok(None)

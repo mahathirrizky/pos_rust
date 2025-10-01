@@ -19,10 +19,16 @@ mod m20250927_130055_create_purchase_orders_table;
 mod m20250927_130100_create_purchase_order_items_table;
 mod m20250927_130105_create_refunds_table;
 mod m20250927_130110_create_refund_items_table;
+mod m20251001_100000_create_settings_table;
+mod m20251001_150000_create_password_reset_tokens_table;
 
 // Alterations and Foreign Keys
 mod m20250927_120015_alter_employees_add_role_id;
 mod m20250927_130115_create_foreign_keys;
+mod m20250929_100000_add_photo_url_to_products;
+mod m20250929_100005_add_photo_url_to_employees;
+pub mod m20250930_100000_add_expires_at_to_products;
+
 
 // Seeding
 mod m20250927_120020_seed_default_roles_permissions;
@@ -54,10 +60,15 @@ impl MigratorTrait for Migrator {
             Box::new(m20250927_130100_create_purchase_order_items_table::Migration),
             Box::new(m20250927_130105_create_refunds_table::Migration),
             Box::new(m20250927_130110_create_refund_items_table::Migration),
+            Box::new(m20251001_100000_create_settings_table::Migration),
+            Box::new(m20251001_150000_create_password_reset_tokens_table::Migration),
 
             // Alterations and Foreign Keys
             Box::new(m20250927_120015_alter_employees_add_role_id::Migration),
             Box::new(m20250927_130115_create_foreign_keys::Migration),
+            Box::new(m20250929_100000_add_photo_url_to_products::Migration),
+            Box::new(m20250929_100005_add_photo_url_to_employees::Migration),
+            Box::new(m20250930_100000_add_expires_at_to_products::Migration),
 
             // Seed Data
             Box::new(m20250927_120020_seed_default_roles_permissions::Migration),

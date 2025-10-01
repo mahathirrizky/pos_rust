@@ -1,5 +1,6 @@
 use sea_orm::{DatabaseConnection, DbErr, EntityTrait, ActiveModelTrait, ActiveValue};
 use crate::entities::categories;
+use chrono::{Utc, DateTime};
 
 pub struct CategoryRepository;
 
@@ -9,9 +10,12 @@ impl CategoryRepository {
     }
 
     pub async fn create(db: &DatabaseConnection, new_category: categories::CreateCategory) -> Result<categories::Model, DbErr> {
+        let now: DateTime<Utc> = Utc::now();
         let category = categories::ActiveModel {
             name: ActiveValue::Set(new_category.name),
             description: ActiveValue::Set(new_category.description),
+            created_at: ActiveValue::Set(now),
+            updated_at: ActiveValue::Set(now),
             ..Default::default()
         };
         category.insert(db).await
@@ -31,6 +35,7 @@ impl CategoryRepository {
             if let Some(description) = update_data.description {
                 active_model.description = ActiveValue::Set(Some(description));
             }
+            active_model.updated_at = ActiveValue::Set(Utc::now());
             Ok(Some(active_model.update(db).await?))
         } else {
             Ok(None)

@@ -16,14 +16,12 @@ use crate::websocket::broadcaster::Broadcaster;
 pub async fn get_all_inventory(db: web::Data<DatabaseConnection>, claims: web::ReqData<Claims>) -> impl Responder {
     let result = if claims.role == "Admin" || claims.role == "Owner" {
         InventoryRepository::get_all(db.get_ref()).await
-    } else if claims.role == "StoreManager" {
+    } else {
         if let Some(store_id) = claims.store_id {
             InventoryRepository::get_all_by_store(db.get_ref(), store_id).await
         } else {
-            return HttpResponse::Forbidden().json(ApiError::new("StoreManager has no assigned store".to_string()));
+            return HttpResponse::Forbidden().json(ApiError::new("User has no assigned store".to_string()));
         }
-    } else {
-        return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Insufficient privileges".to_string()));
     };
 
     match result {

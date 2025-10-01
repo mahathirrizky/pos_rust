@@ -16,6 +16,7 @@ pub struct Model {
     pub store_id: Option<i32>,
     pub role: String,
     pub password_hash: String,
+    pub photo_url: Option<String>,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,
     pub role_id: i32,
@@ -86,19 +87,30 @@ pub struct CreateEmployee {
     pub email: String,
     pub phone: Option<String>,
     pub store_id: Option<i32>,
-    pub password_hash: String,
-    pub role: String,
+    pub role_id: i32,
+    pub photo_url: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Default)]
 pub struct UpdateEmployee {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub email: Option<String>,
     pub phone: Option<String>,
     pub store_id: Option<i32>,
-    pub role: Option<String>,
-    pub password_hash: Option<String>,
+    pub role_id: Option<i32>,
+    pub password: Option<String>,
+    pub photo_url: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CreateAdminPayload {
+    pub first_name: String,
+    pub last_name: String,
+    pub email: String,
+    pub phone: Option<String>,
+    pub store_id: Option<i32>,
+    pub photo_url: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -110,6 +122,9 @@ pub struct EmployeeResponse {
     pub phone: Option<String>,
     pub store_id: Option<i32>,
     pub role: String,
+    pub role_id: i32,
+    pub photo_url: Option<String>,
+    pub created_at: DateTimeUtc,
 }
 
 impl From<Model> for EmployeeResponse {
@@ -122,6 +137,9 @@ impl From<Model> for EmployeeResponse {
             phone: employee.phone,
             store_id: employee.store_id,
             role: employee.role,
+            role_id: employee.role_id,
+            photo_url: employee.photo_url,
+            created_at: employee.created_at,
         }
     }
 }

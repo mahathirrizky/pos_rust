@@ -1,5 +1,7 @@
 use sea_orm::{DatabaseConnection, DbErr, EntityTrait, ActiveModelTrait, ActiveValue, QueryFilter, ColumnTrait};
 use crate::entities::employees;
+use crate::repository::roles_repository::RoleRepository;
+use chrono::{Utc, DateTime};
 
 pub struct EmployeeRepository;
 
@@ -23,15 +25,29 @@ impl EmployeeRepository {
         employees::Entity::find().filter(employees::Column::StoreId.eq(store_id)).all(db).await
     }
 
-    pub async fn create(db: &DatabaseConnection, new_employee: employees::CreateEmployee, role: String) -> Result<employees::Model, DbErr> {
+    pub async fn create(db: &DatabaseConnection, new_employee: employees::CreateEmployee) -> Result<employees::Model, DbErr> {
+        // Find the role by ID to get its name
+        let role_model = RoleRepository::find_by_id(db, new_employee.role_id).await?;
+
+        let role_name = match role_model {
+            Some(model) => model.name,
+            // If the role doesn't exist for the given ID, return an error.
+            None => return Err(DbErr::Custom(format!("Role with ID '{}' not found", new_employee.role_id)))
+        };
+
+        let now: DateTime<Utc> = Utc::now();
         let employee = employees::ActiveModel {
             first_name: ActiveValue::Set(new_employee.first_name),
             last_name: ActiveValue::Set(new_employee.last_name),
             email: ActiveValue::Set(new_employee.email),
             phone: ActiveValue::Set(new_employee.phone),
             store_id: ActiveValue::Set(new_employee.store_id),
-            role: ActiveValue::Set(role),
-            password_hash: ActiveValue::Set(new_employee.password_hash),
+            role: ActiveValue::Set(role_name), // Set the role name string
+            role_id: ActiveValue::Set(new_employee.role_id), // Set the foreign key
+            password_hash: ActiveValue::Set("".to_string()), // Set empty password hash
+            photo_url: ActiveValue::Set(new_employee.photo_url),
+            created_at: ActiveValue::Set(now),
+            updated_at: ActiveValue::Set(now),
             ..Default::default()
         };
         employee.insert(db).await
@@ -60,12 +76,22 @@ impl EmployeeRepository {
             if let Some(store_id) = update_data.store_id {
                 active_model.store_id = ActiveValue::Set(Some(store_id));
             }
-            if let Some(role) = update_data.role {
-                active_model.role = ActiveValue::Set(role);
+            if let Some(role_id) = update_data.role_id {
+                let role_model = RoleRepository::find_by_id(db, role_id).await?;
+                if let Some(role) = role_model {
+                    active_model.role = ActiveValue::Set(role.name);
+                    active_model.role_id = ActiveValue::Set(role.id);
+                } else {
+                    return Err(DbErr::Custom(format!("Role with ID '{}' not found", role_id)));
+                }
             }
-            if let Some(password_hash) = update_data.password_hash {
-                active_model.password_hash = ActiveValue::Set(password_hash);
+            if let Some(password) = update_data.password {
+                active_model.password_hash = ActiveValue::Set(password);
             }
+            if let Some(photo_url) = update_data.photo_url {
+                active_model.photo_url = ActiveValue::Set(Some(photo_url));
+            }
+            active_model.updated_at = ActiveValue::Set(Utc::now());
             Ok(Some(active_model.update(db).await?))
         } else {
             Ok(None)

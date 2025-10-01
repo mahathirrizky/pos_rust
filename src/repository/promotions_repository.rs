@@ -1,10 +1,12 @@
 use sea_orm::{DbErr, EntityTrait, ActiveModelTrait, ActiveValue, ConnectionTrait, ColumnTrait, QueryFilter};
 use crate::entities::promotions;
+use chrono::{Utc, DateTime};
 
 pub struct PromotionRepository;
 
 impl PromotionRepository {
     pub async fn create<C: ConnectionTrait>(db: &C, new_promotion: promotions::CreatePromotion) -> Result<promotions::Model, DbErr> {
+        let now: DateTime<Utc> = Utc::now();
         let promo = promotions::ActiveModel {
             name: ActiveValue::Set(new_promotion.name),
             description: ActiveValue::Set(new_promotion.description),
@@ -14,6 +16,8 @@ impl PromotionRepository {
             end_date: ActiveValue::Set(new_promotion.end_date),
             is_active: ActiveValue::Set(new_promotion.is_active.unwrap_or(true) as i8),
             product_id: ActiveValue::Set(new_promotion.product_id),
+            created_at: ActiveValue::Set(now),
+            updated_at: ActiveValue::Set(now),
             ..Default::default()
         };
         promo.insert(db).await

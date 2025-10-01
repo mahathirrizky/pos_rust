@@ -144,7 +144,7 @@ const formatDate = (value) => {
           <Column headerStyle="width: 10rem">
              <template #body="slotProps">
                 <Button icon="pi pi-pencil" class="mr-2" severity="success" rounded @click="editPromotion(slotProps.data)" />
-                <Button icon="pi pi-trash" severity="warning" rounded @click="confirmDeletePromotion(slotProps.data)" />
+                <Button icon="pi pi-trash" severity="danger" rounded @click="confirmDeletePromotion(slotProps.data)" />
             </template>
           </Column>
         </DataTable>

@@ -74,6 +74,8 @@ pub async fn create_refund(
                 product_id: Set(original_item.product_id),
                 quantity: Set(item_to_refund.quantity),
                 amount: Set(item_amount),
+                created_at: Set(Utc::now()),
+                updated_at: Set(Utc::now()),
                 ..Default::default()
             });
         } else {
@@ -92,6 +94,8 @@ pub async fn create_refund(
         store_id: Set(store_id),
         reason: Set(payload.reason.clone()),
         total_amount: Set(total_refund_amount),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
         ..Default::default()
     };
 

@@ -48,7 +48,7 @@ const formatCurrency = (value) => {
     if (typeof value !== 'number') {
         value = parseFloat(value);
     }
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(value);
 };
 
 </script>
@@ -64,7 +64,7 @@ const formatCurrency = (value) => {
       <template #content>
         <Toolbar class="mb-4">
           <template #start>
-            <Button v-if="canWrite" label="New" icon="pi pi-plus" class="mr-2" @click="openNew" />
+            <Button v-if="canWrite" label="New" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
           </template>
         </Toolbar>
 

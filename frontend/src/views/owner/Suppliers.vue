@@ -128,7 +128,7 @@ const deleteSelectedSuppliers = () => {
           <Column headerStyle="width: 10rem">
              <template #body="slotProps">
                 <Button icon="pi pi-pencil" class="mr-2" severity="success" rounded @click="editSupplier(slotProps.data)" />
-                <Button icon="pi pi-trash" severity="warning" rounded @click="confirmDeleteSupplier(slotProps.data)" />
+                <Button icon="pi pi-trash" severity="danger" rounded @click="confirmDeleteSupplier(slotProps.data)" />
             </template>
           </Column>
         </DataTable>

@@ -2,6 +2,7 @@ use sea_orm::{DbErr, EntityTrait, ActiveModelTrait, ActiveValue, ColumnTrait, Qu
 use crate::entities::inventory;
 use actix::Addr;
 use crate::websocket::broadcaster::{Broadcaster, BroadcastMessage};
+use chrono::{Utc, DateTime};
 
 pub struct InventoryRepository;
 
@@ -26,17 +27,21 @@ impl InventoryRepository {
 
     pub async fn increase_quantity<C: ConnectionTrait>(db: &C, product_id: i32, store_id: i32, quantity_to_add: i32) -> Result<inventory::Model, DbErr> {
         let inventory_item = Self::find_by_product_and_store(db, product_id, store_id).await?;
+        let now: DateTime<Utc> = Utc::now();
 
         if let Some(item) = inventory_item {
             let mut active_model: inventory::ActiveModel = item.into();
             active_model.quantity = ActiveValue::Set(active_model.quantity.as_ref() + quantity_to_add);
+            active_model.updated_at = ActiveValue::Set(now);
             active_model.update(db).await
         } else {
             let new_inventory = inventory::ActiveModel {
                 product_id: ActiveValue::Set(product_id),
                 store_id: ActiveValue::Set(store_id),
                 quantity: ActiveValue::Set(quantity_to_add),
-                last_restocked: ActiveValue::Set(Some(chrono::Utc::now().into())),
+                last_restocked: ActiveValue::Set(Some(now.into())),
+                created_at: ActiveValue::Set(now),
+                updated_at: ActiveValue::Set(now),
                 ..Default::default()
             };
             new_inventory.insert(db).await
@@ -54,15 +59,19 @@ impl InventoryRepository {
 
         let mut active_model: inventory::ActiveModel = inventory_item.into();
         active_model.quantity = ActiveValue::Set(active_model.quantity.as_ref() - quantity_to_subtract);
+        active_model.updated_at = ActiveValue::Set(Utc::now());
         active_model.update(db).await
     }
 
     pub async fn create<C: ConnectionTrait>(db: &C, new_inventory: inventory::CreateInventory) -> Result<inventory::Model, DbErr> {
+        let now: DateTime<Utc> = Utc::now();
         let inventory = inventory::ActiveModel {
             product_id: ActiveValue::Set(new_inventory.product_id),
             store_id: ActiveValue::Set(new_inventory.store_id),
             quantity: ActiveValue::Set(new_inventory.quantity),
             last_restocked: ActiveValue::Set(new_inventory.last_restocked),
+            created_at: ActiveValue::Set(now),
+            updated_at: ActiveValue::Set(now),
             ..Default::default()
         };
         inventory.insert(db).await
@@ -93,6 +102,7 @@ impl InventoryRepository {
             if let Some(last_restocked) = update_data.last_restocked {
                 active_model.last_restocked = ActiveValue::Set(Some(last_restocked));
             }
+            active_model.updated_at = ActiveValue::Set(Utc::now());
             let result = active_model.update(db).await?;
 
             broadcaster.do_send(BroadcastMessage("inventory_updated".to_string()));

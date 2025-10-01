@@ -2,6 +2,7 @@ use sea_orm::{ConnectionTrait, DbErr, EntityTrait, ActiveModelTrait, ActiveValue
 use crate::entities::products::{self, ProductWithDetails};
 use crate::entities::categories;
 use crate::entities::suppliers;
+use chrono::{Utc, DateTime};
 
 pub struct ProductRepository;
 
@@ -18,6 +19,7 @@ impl ProductRepository {
             .column(products::Column::Sku)
             .column(products::Column::CategoryId)
             .column(products::Column::SupplierId)
+            .column(products::Column::PhotoUrl)
             .column(products::Column::CreatedAt)
             .column(products::Column::UpdatedAt)
             .column_as(categories::Column::Name, "category_name")
@@ -32,6 +34,7 @@ impl ProductRepository {
     }
 
     pub async fn create<C: ConnectionTrait>(db: &C, new_product: products::CreateProduct) -> Result<products::Model, DbErr> {
+        let now: DateTime<Utc> = Utc::now();
         let product = products::ActiveModel {
             name: ActiveValue::Set(new_product.name),
             description: ActiveValue::Set(new_product.description),
@@ -39,6 +42,9 @@ impl ProductRepository {
             sku: ActiveValue::Set(new_product.sku),
             category_id: ActiveValue::Set(new_product.category_id),
             supplier_id: ActiveValue::Set(new_product.supplier_id),
+            photo_url: ActiveValue::Set(new_product.photo_url),
+            created_at: ActiveValue::Set(now),
+            updated_at: ActiveValue::Set(now),
             ..Default::default()
         };
         product.insert(db).await
@@ -70,6 +76,10 @@ impl ProductRepository {
             if let Some(supplier_id) = update_data.supplier_id {
                 active_model.supplier_id = ActiveValue::Set(supplier_id);
             }
+            if let Some(photo_url) = update_data.photo_url {
+                active_model.photo_url = ActiveValue::Set(Some(photo_url));
+            }
+            active_model.updated_at = ActiveValue::Set(Utc::now());
             Ok(Some(active_model.update(db).await?))
         } else {
             Ok(None)

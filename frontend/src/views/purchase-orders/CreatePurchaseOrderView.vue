@@ -81,7 +81,7 @@ const goBack = () => {
     <template #footer>
         <div class="flex justify-end gap-2">
             <Button label="Cancel" icon="pi pi-times" @click="goBack" severity="secondary"/>
-            <Button label="Save and Add Items" icon="pi pi-check" @click="savePurchaseOrder" />
+            <Button label="Save and Add Items" icon="pi pi-check" severity="success" @click="savePurchaseOrder" />
         </div>
     </template>
   </Card>

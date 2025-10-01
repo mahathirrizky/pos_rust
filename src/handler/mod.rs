@@ -14,3 +14,5 @@ pub mod reports_handler;
 pub mod purchase_orders_handler;
 pub mod bills_handler; // New module
 pub mod roles_handler;
+pub mod upload_handler;
+pub mod settings_handler;

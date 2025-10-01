@@ -20,3 +20,6 @@ pub mod role_permissions;
 pub mod roles;
 pub mod stores;
 pub mod suppliers;
+pub mod settings_model;
+pub mod settings;
+pub mod password_reset_tokens;

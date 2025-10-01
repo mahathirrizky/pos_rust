@@ -1,5 +1,6 @@
 use sea_orm::{DatabaseConnection, DbErr, EntityTrait, ActiveModelTrait, ActiveValue};
 use crate::entities::customers;
+use chrono::{Utc, DateTime};
 
 pub struct CustomerRepository;
 
@@ -9,12 +10,15 @@ impl CustomerRepository {
     }
 
     pub async fn create(db: &DatabaseConnection, new_customer: customers::CreateCustomer) -> Result<customers::Model, DbErr> {
+        let now: DateTime<Utc> = Utc::now();
         let customer = customers::ActiveModel {
             first_name: ActiveValue::Set(new_customer.first_name),
             last_name: ActiveValue::Set(new_customer.last_name),
             email: ActiveValue::Set(new_customer.email),
             phone: ActiveValue::Set(new_customer.phone),
             address: ActiveValue::Set(new_customer.address),
+            created_at: ActiveValue::Set(now),
+            updated_at: ActiveValue::Set(now),
             ..Default::default()
         };
         customer.insert(db).await
@@ -43,6 +47,7 @@ impl CustomerRepository {
             if let Some(address) = update_data.address {
                 active_model.address = ActiveValue::Set(Some(address));
             }
+            active_model.updated_at = ActiveValue::Set(Utc::now());
             Ok(Some(active_model.update(db).await?))
         } else {
             Ok(None)

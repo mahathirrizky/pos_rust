@@ -57,7 +57,28 @@ pub async fn delete_product(
     if guard.claims.role != "Admin" && guard.claims.role != "Owner" {
         return HttpResponse::Forbidden().json(ApiError::new("Forbidden: Insufficient privileges to delete product".to_string()));
     }
-    match ProductRepository::delete(db.get_ref(), guard.product.id).await {
+
+    // Get the product from the guard to access its photo_url
+    let product_to_delete = guard.product;
+
+    // If the product has a photo_url, attempt to delete the file
+    if let Some(photo_url) = product_to_delete.photo_url {
+        // Construct the full file system path
+        let file_path = format!(".{}", photo_url); // Assuming photo_url is like /uploads/xxx.webp
+
+        // Basic security check to prevent directory traversal
+        if !photo_url.starts_with("/uploads/") || photo_url.contains("..") {
+            eprintln!("Attempted to delete an invalid file path: {}", photo_url);
+            // Log but don't block product deletion for security reasons
+        } else {
+            match std::fs::remove_file(&file_path) {
+                Ok(_) => println!("Successfully deleted image file: {}", file_path),
+                Err(e) => eprintln!("Failed to delete image file {}: {}", file_path, e),
+            }
+        }
+    }
+
+    match ProductRepository::delete(db.get_ref(), product_to_delete.id).await {
         Ok(rows_affected) => {
             if rows_affected > 0 {
                 HttpResponse::Ok().json(ApiResponse::new("Product deleted successfully".to_string()))
